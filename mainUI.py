@@ -146,13 +146,11 @@ class Window(QtGui.QMainWindow):
         searchVendorBtn = QtGui.QPushButton('Search vendor')
         searchVendorBtn.clicked.connect(self.saveBillDetails)
 
-        gb = QtGui.QGroupBox('Vendor details')
-
 
         self.formAreaLayout.addWidget(vendorLbl , 0,0)
         self.formAreaLayout.addWidget(vendorEdit , 0,1)
         self.formAreaLayout.addWidget(searchVendorBtn , 1,1)
-        self.formAreaLayout.addWidget(gb , 2,1)
+        self.updateVendorDetails()
         self.formAreaLayout.addWidget(descLbl , 3,0)
         self.formAreaLayout.addWidget(descEdit , 3,1)
         self.formAreaLayout.addWidget(amountLbl , 4,0)
@@ -179,6 +177,23 @@ class Window(QtGui.QMainWindow):
 
         self.setCentralWidget(QtGui.QWidget(self))
         self.centralWidget().setLayout(self.mainLayout)
+
+    def updateVendorDetails(self , vendor = None):
+        try:
+            self.vendorDetailsGb.deleteLater()
+            self.vendorDetailsGb = None
+        except:
+            pass
+
+        if vendor is None:
+            self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
+            vendorLyt = QtGui.QGridLayout()
+            vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor to see its details'))
+            self.vendorDetailsGb.setLayout(vendorLyt)
+            self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
+        else:
+            pass
+
 
     def saveBillDetails(self):
         pass

@@ -24,11 +24,11 @@ r = session.post('http://pradeepyadav.net/login/' , {'username' : str(uName) ,'p
 
 print r.status_code
 
-print(dir(f))
 sessionID = session.cookies['sessionid']
 csrfToken = session.cookies['csrftoken']
 
+session.cookies.update({'sessionid' : sessionID})
+session.cookies.update({'csrftoken' : csrfToken})
+
 f.writelines([ 'session=' + sessionID + '\n' , 'csrf=' + csrfToken])
 f.close()
-
-print r.status_code

@@ -55,7 +55,7 @@ import string
 import random
 import json
 import xml.etree.ElementTree as ET
-
+from welcomeScreen import getLibreUser
 
 
 # class Window(QtGui.QMainWindow , ApplicationSession):
@@ -236,7 +236,11 @@ class Window(QtGui.QMainWindow):
 
         # tab related menu options
 
-        self.logoutAct = QtGui.QAction("Logout" , self , triggered = self.close)
+        self.logoutAct = QtGui.QAction("Logout" , self , triggered = self.logout)
+    def logout(self):
+        os.remove(os.path.expanduser('~/.libreerp/token.key'))
+        self.close()
+
 
     def createMenus(self):
 
@@ -258,7 +262,6 @@ class Window(QtGui.QMainWindow):
 
 if __name__ == '__main__':
 
-    app = QtGui.QApplication(sys.argv)
     # app_icon = QtGui.QIcon()
     # app_icon.addFile('./robot_icon.png', QtCore.QSize(16,16))
     # app_icon.addFile('./robot_icon.png', QtCore.QSize(24,24))
@@ -266,12 +269,6 @@ if __name__ == '__main__':
     # app_icon.addFile('./robot_icon.png', QtCore.QSize(48,48))
     # app_icon.addFile('./robot_icon.png', QtCore.QSize(256,256))
     # app.setWindowIcon(app_icon)
-    # welcomeScreen = loginScreen()
-    # if welcomeScreen.exec_() == QtGui.QDialog.Accepted:
-    #     window = Window(user = welcomeScreen.user)
-    #     window.show()
-    # else:
-    #     sys.exit()
 
 
     # # if wamp is required
@@ -280,7 +277,9 @@ if __name__ == '__main__':
     # runner.run(Window)
     #
     # # if wamp is not required
-    window = Window()
+    usr = getLibreUser()
+    app = QtGui.QApplication(sys.argv)
+    window = Window(user = usr)
     window.show()
 
     sys.exit(app.exec_())

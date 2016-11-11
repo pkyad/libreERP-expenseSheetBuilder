@@ -40,22 +40,37 @@ import os
 import sys
 baseFolder = os.path.expanduser('~/.libreerp')
 tokenFilePath = os.path.expanduser('~/.libreerp/token.key')
-conf = open(os.path.expanduser('~/.libreerp/config.txt'))
-
-for r in conf.readlines():
-    val = r.split('=')[1].replace('\n' , '')
-    print val
-    if r.startswith('proxy'):
-        prx = val
-    elif r.startswith('domain'):
-        domain = val
 
 
-proxies = {
-  'http': prx,
-  'https': prx,
-}
+# for r in conf.readlines():
+#     val = r.split('=')[1].replace('\n' , '')
+#     if r.startswith('proxy'):
+#         prx = val
+#     elif r.startswith('domain'):
+#         domain = val
+#
+#
+# proxies = {
+#   'http': prx,
+#   'https': prx,
+# }
 
+def getConfigs():
+    configs = {}
+    conf = open(os.path.expanduser('~/.libreerp/config.txt'))
+    for r in conf.readlines():
+        val = r.split('=')[1].replace('\n' , '')
+        if r.startswith('proxy'):
+            proxies = {
+              'http': val,
+              'https': val,
+            }
+            configs['proxy'] = proxies
+        elif r.startswith('domain'):
+            configs['domain'] = val
+    return configs
+
+configs = getConfigs()
 
 if not os.path.isdir(baseFolder):
     os.mkdir(baseFolder)
@@ -113,10 +128,8 @@ class loginScreen(QtGui.QDialog):
 
         session = requests.Session()
 
-        uName = 'admin'
-        passwrd = 'indiaerp'
-        r = session.get( domain + '/login/' , proxies = proxies)
-        r = session.post( domain + '/login/' , {'username' : str(uName) ,'password': str(passwrd), 'csrfmiddlewaretoken': session.cookies['csrftoken'] })
+        r = session.get( configs['domain'] + '/login/' , proxies = configs['proxy'])
+        r = session.post( configs['domain'] + '/login/' , {'username' : str(uName) ,'password': str(passwrd), 'csrfmiddlewaretoken': session.cookies['csrftoken'] })
 
         if r.status_code == 200:
             sessionID = session.cookies['sessionid']
@@ -125,7 +138,7 @@ class loginScreen(QtGui.QDialog):
             f.writelines([ 'session=' + sessionID + '\n' , 'csrf=' + csrfToken])
             f.close()
             print 'completed writing the tokens to the file'
-            r = session.get( domain + '/api/HR/users/?mode=mySelf')
+            r = session.get( configs['domain'] + '/api/HR/users/?mode=mySelf')
             urs = r.json()
             self.user = User(urs[0])
             print self.user
@@ -144,7 +157,11 @@ def openLoginDialog():
 
 def getCookiedSession():
     session = requests.Session()
-    f = open(tokenFilePath , 'r')
+    try:
+        f = open(tokenFilePath , 'r')
+    except:
+        openLoginDialog()
+        f = open(tokenFilePath , 'r')
     for r in f.readlines():
         if r.startswith('csrf='):
             csrfToken = r.replace('csrf=' , '').replace('\n' , '')
@@ -155,7 +172,7 @@ def getCookiedSession():
     return session
 
 def getLibreUser():
-    mySelfLink = domain + '/api/HR/users/?mode=mySelf&format=json'
+    mySelfLink = configs['domain'] + '/api/HR/users/?mode=mySelf&format=json'
     if os.path.isfile(tokenFilePath):
         try:
             session = getCookiedSession()
@@ -163,22 +180,31 @@ def getLibreUser():
             print 'error getting the existing tokens, opening the login dialog window'
             openLoginDialog()
             session = getCookiedSession()
-        r = session.get( mySelfLink, proxies = proxies)
+        r = session.get( mySelfLink, proxies = configs['proxy'])
         if r.status_code != 200:
             print 'existing tokens incorrect'
             openLoginDialog()
             session = getCookiedSession()
-            r = session.get(mySelfLink , proxies = proxies)
+            r = session.get(mySelfLink , proxies = configs['proxy'])
 
     else:
         print 'token file missing , will show login window now'
         openLoginDialog()
         session = getCookiedSession()
-        r = session.get(mySelfLink , proxies = proxies)
+        r = session.get(mySelfLink , proxies = configs['proxy'])
 
     urs = r.json()
     user = User(urs[0])
     return user
+
+def libreHTTP(url ,method = 'get'):
+    ses = getCookiedSession()
+    configs = getConfigs()
+    r = ses.get( configs['domain'] + url , proxies = configs['proxy'])
+    if r.status_code!= 200:
+        getLibreUser()
+        libreHTTP(url = url , method = method)
+    return r
 
 if __name__ == '__main__':
     getLibreUser()

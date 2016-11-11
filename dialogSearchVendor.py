@@ -34,6 +34,8 @@
 #############################################################################
 
 from PyQt4 import QtCore, QtGui
+from welcomeScreen import getCookiedSession , getConfigs , libreHTTP
+
 
 class searchVendorDialog(QtGui.QDialog):
     def __init__(self, parent = None):
@@ -44,7 +46,7 @@ class searchVendorDialog(QtGui.QDialog):
 
         self.searchEdit = QtGui.QLineEdit()
         self.searchEdit.setPlaceholderText('Search for vendor using name')
-        self.searchEdit.textChanged.connect(self.handleSearch)
+        self.searchEdit.returnPressed.connect(self.handleSearch)
 
         # self.searchBtn = QtGui.QPushButton('Search')
         # self.searchBtn.clicked.connect(self.handleSearch)
@@ -59,33 +61,55 @@ class searchVendorDialog(QtGui.QDialog):
 
         self.resultGb.setLayout(self.resultGbLayout)
 
-        self.buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
+        self.okayBtn = QtGui.QPushButton('Ok')
+        self.okayBtn.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.okayBtn.setFixedWidth(70)
+        self.cancelBtn = QtGui.QPushButton('Cancel')
+        self.cancelBtn.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.cancelBtn.setFixedWidth(70)
 
+        self.okayBtn.clicked.connect(self.handleOkay)
+        self.cancelBtn.clicked.connect(self.reject)
+
+        self.buttonBox = QtGui.QWidget()
+        self.buttonBoxLayout = QtGui.QGridLayout()
+        self.buttonBoxLayout.addWidget(self.okayBtn , 0,0 , QtCore.Qt.AlignRight)
+        self.buttonBoxLayout.addWidget(self.cancelBtn , 0,1, QtCore.Qt.AlignRight)
+        self.buttonBoxLayout.setMargin(0)
+        self.buttonBox.setLayout(self.buttonBoxLayout)
 
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.searchEdit , 0, 0)
         # self.layout.addWidget(self.searchBtn , 0, 1)
         self.layout.addWidget(self.resultGb , 1, 0)
-        self.layout.addWidget(self.buttonBox , 2, 0, QtCore.Qt.AlignBottom)
+        self.layout.addWidget(self.buttonBox , 2, 0, QtCore.Qt.AlignBottom |  QtCore.Qt.AlignRight)
 
         self.setFixedWidth(800)
-        self.setFixedHeight(500)
+        self.setFixedHeight(480)
         self.mainWidget.setLayout(self.layout)
 
         self.mainLayout = QtGui.QGridLayout()
+        self.mainLayout.setMargin(0)
         self.mainLayout.addWidget(self.mainWidget , 0, 0, QtCore.Qt.AlignTop)
         self.setLayout(self.mainLayout)
+    def handleOkay(self):
+        for b in self.radioBtnArray:
+            if b.isChecked():
+                ind = self.radioBtnArray.index(b)
+                print ind
+                print self.results[ind]
 
+        self.accept()
 
     def handleSearch(self):
+
+        r = libreHTTP('/api/HR/users/?username__startswith=' + self.searchEdit.text())
+        self.results = r.json()
 
         self.resultGb.deleteLater()
         self.resultGb = None
 
         self.resultGb = QtGui.QGroupBox('Suggestions')
-
 
         self.resultGbLayout = QtGui.QGridLayout()
 
@@ -98,23 +122,9 @@ class searchVendorDialog(QtGui.QDialog):
         self.table.setColumnWidth(1,230)
         self.table.setColumnWidth(2,120)
         self.table.setFixedHeight(370)
-
-        vendors = [
-            {'name' : 'name 1' , 'pk' : 2 ,  'address' : 'an address'},
-            {'name' : 'name 2' , 'pk' : 3 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 4 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 5 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 7 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 8 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 9 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 40 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 47,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 42 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 48 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 41 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 24 ,  'address' : 'an address'},
-            {'name' : 'name 3' , 'pk' : 44 ,  'address' : 'an address'}
-        ]
+        vendors = []
+        for v in self.results:
+            vendors.append({'name' : v['username'] , 'pk' : v['pk'] , 'address' : 'an address str'})
 
         self.table.setRowCount(len(vendors))
 
@@ -126,8 +136,6 @@ class searchVendorDialog(QtGui.QDialog):
             self.table.setItem(i,1, QtGui.QTableWidgetItem(str(v['name'])))
             self.table.setItem(i,2, QtGui.QTableWidgetItem(str(v['pk'])))
             self.table.setItem(i,3, QtGui.QTableWidgetItem(str(v['address'])))
-
-
 
         self.resultGbLayout.addWidget(self.table)
         self.resultGb.setLayout(self.resultGbLayout)

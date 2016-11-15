@@ -40,6 +40,7 @@ from welcomeScreen import getCookiedSession , getConfigs , libreHTTP
 class searchVendorDialog(QtGui.QDialog):
     def __init__(self, parent = None):
         super(searchVendorDialog, self).__init__(parent)
+        self.results = []
         self.setWindowTitle('Search vendor')
 
         self.mainWidget = QtGui.QWidget()
@@ -93,12 +94,15 @@ class searchVendorDialog(QtGui.QDialog):
         self.mainLayout.addWidget(self.mainWidget , 0, 0, QtCore.Qt.AlignTop)
         self.setLayout(self.mainLayout)
     def handleOkay(self):
+        if len(self.results) ==0:
+            self.reject()
+            return
         for b in self.radioBtnArray:
             if b.isChecked():
                 ind = self.radioBtnArray.index(b)
-                print ind
-                print self.results[ind]
-
+                # print ind
+                # print self.results[ind]
+        self.selectedValue = self.results[ind]
         self.accept()
 
     def handleSearch(self):

@@ -42,6 +42,7 @@ import os
 from PyQt4 import QtCore, QtGui, QtOpenGL
 import lxml.etree as etree
 from xml.dom import minidom
+from dialogSearchVendor import searchVendorDialog
 
 try:
     from OpenGL import GL
@@ -91,6 +92,7 @@ class Window(QtGui.QMainWindow):
         self.scrollArea = QtGui.QScrollArea()
         self.scrollArea.setBackgroundRole(QtGui.QPalette.Dark)
         self.scrollArea.setWidget(self.imageLabel)
+        # self.scrollArea.setWidgetResizable(True)
 
         self.setWindowTitle("LibreERP : Expense entry tool")
 
@@ -106,14 +108,14 @@ class Window(QtGui.QMainWindow):
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.table.cellDoubleClicked .connect(self.doubleClickedItem)
 
-        scans = ['scan.jpg' , 'scan.jpg', 'scan.jpg', 'scan.jpg', 'scan.jpg', 'scan.jpg', 'scan.jpg', 'scan.jpg', 'scan.jpg']
+        self.scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
 
-        self.table.setRowCount(len(scans))
-        for i in range(len(scans)):
-            s = scans[i]
-
+        self.table.setRowCount(len(self.scans))
+        for i in range(len(self.scans)):
+            s = self.scans[i]
             self.table.setCellWidget(i,0 , self.getImgWidget(s))
             self.table.setRowHeight(i, 300)
+        self.table.currentCellChanged.connect(self.changeImageInView)
 
         # self.configureWidget = QtGui.QWidget()
         self.table.setMaximumWidth(240)
@@ -124,8 +126,8 @@ class Window(QtGui.QMainWindow):
         self.formAreaLayout = QtGui.QGridLayout()
 
         vendorLbl = QtGui.QLabel('Vendor')
-        vendorEdit = QtGui.QLineEdit()
-        vendorEdit.setEnabled(False)
+        self.vendorEdit = QtGui.QLineEdit()
+        self.vendorEdit.setEnabled(False)
 
         descLbl = QtGui.QLabel('Description')
         descEdit = QtGui.QTextEdit()
@@ -144,11 +146,11 @@ class Window(QtGui.QMainWindow):
         btn.clicked.connect(self.saveBillDetails)
 
         searchVendorBtn = QtGui.QPushButton('Search vendor')
-        searchVendorBtn.clicked.connect(self.saveBillDetails)
+        searchVendorBtn.clicked.connect(self.searchVendorHandler)
 
 
         self.formAreaLayout.addWidget(vendorLbl , 0,0)
-        self.formAreaLayout.addWidget(vendorEdit , 0,1)
+        self.formAreaLayout.addWidget(self.vendorEdit , 0,1)
         self.formAreaLayout.addWidget(searchVendorBtn , 1,1)
         self.updateVendorDetails()
         self.formAreaLayout.addWidget(descLbl , 3,0)
@@ -177,19 +179,43 @@ class Window(QtGui.QMainWindow):
 
         self.setCentralWidget(QtGui.QWidget(self))
         self.centralWidget().setLayout(self.mainLayout)
+    def changeImageInView(self, row , col , oldRow , oldCol):
 
-    def updateVendorDetails(self , vendor = None):
-        try:
+        image = QtGui.QImage(self.scans[row])
+        self.pixmap = QtGui.QPixmap.fromImage(image)
+        self.imageLabel.setPixmap(self.pixmap)
+
+        self.scaleFactor = 1.0
+        self.printAct.setEnabled(True)
+        self.fitToWindowAct.setEnabled(True)
+        self.updateActions()
+        if not self.fitToWindowAct.isChecked():
+            self.imageLabel.adjustSize()
+        # pass
+
+
+    def searchVendorHandler(self):
+
+        dialog = searchVendorDialog(self)
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            self.vendorEdit.setText(dialog.selectedValue['first_name'])
+
             self.vendorDetailsGb.deleteLater()
             self.vendorDetailsGb = None
-        except:
-            pass
+            self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
+            self.vendorLyt = QtGui.QGridLayout()
+            self.vendorLyt.addWidget(QtGui.QLabel(QtCore.QString('<span style=" font-size:8pt; font-weight:600; color:black;">Name : </span>' + dialog.selectedValue['first_name'] + '<br/><span style=" font-size:8pt; font-weight:600; color:black;"> Address : </span>' + 'An address line 1 <br/> second line <br/>  201301')))
+            self.vendorDetailsGb.setLayout(self.vendorLyt)
+            self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
+
+
+    def updateVendorDetails(self , vendor = None):
 
         if vendor is None:
             self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
-            vendorLyt = QtGui.QGridLayout()
-            vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor to see its details'))
-            self.vendorDetailsGb.setLayout(vendorLyt)
+            self.vendorLyt = QtGui.QGridLayout()
+            self.vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor to see its details'))
+            self.vendorDetailsGb.setLayout(self.vendorLyt)
             self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
         else:
             pass
@@ -229,18 +255,62 @@ class Window(QtGui.QMainWindow):
         pass
 
     def createActions(self):
+        self.printAct = QtGui.QAction("&Print...", self, shortcut="Ctrl+P",
+                enabled=False, triggered=self.print_)
+
+
         self.aboutQtAct = QtGui.QAction("About &Qt", self,
                 triggered=QtGui.qApp.aboutQt)
 
         self.aboutAct = QtGui.QAction("&About", self, triggered=self.about)
 
+        self.zoomInAct = QtGui.QAction("Zoom &In (25%)", self,
+                shortcut="Ctrl++", enabled=False, triggered=self.zoomIn)
+
+        self.zoomOutAct = QtGui.QAction("Zoom &Out (25%)", self,
+                shortcut="Ctrl+-", enabled=False, triggered=self.zoomOut)
+
+        self.normalSizeAct = QtGui.QAction("&Normal Size", self,
+                shortcut="Ctrl+N", enabled=False, triggered=self.normalSize)
+
+        self.fitToWindowAct = QtGui.QAction("&Fit to Window", self,
+                enabled=False, checkable=True, shortcut="Ctrl+F",
+                triggered=self.fitToWindow)
         # tab related menu options
 
         self.logoutAct = QtGui.QAction("Logout" , self , triggered = self.logout)
+
+    def print_(self):
+        dialog = QtGui.QPrintDialog(self.printer, self)
+        if dialog.exec_():
+            painter = QtGui.QPainter(self.printer)
+            rect = painter.viewport()
+            size = self.imageLabel.pixmap().size()
+            size.scale(rect.size(), QtCore.Qt.KeepAspectRatio)
+            painter.setViewport(rect.x(), rect.y(), size.width(), size.height())
+            painter.setWindow(self.imageLabel.pixmap().rect())
+            painter.drawPixmap(0, 0, self.imageLabel.pixmap())
+
+    def zoomIn(self):
+        self.scaleImage(1.25)
+
+    def zoomOut(self):
+        self.scaleImage(0.8)
+
+    def normalSize(self):
+        self.imageLabel.adjustSize()
+        self.scaleFactor = 1.0
+
+    def fitToWindow(self):
+        fitToWindow = self.fitToWindowAct.isChecked()
+        self.scrollArea.setWidgetResizable(fitToWindow)
+        if not fitToWindow:
+            self.normalSize()
+        self.updateActions()
+
     def logout(self):
         os.remove(os.path.expanduser('~/.libreerp/token.key'))
         self.close()
-
 
     def createMenus(self):
 
@@ -248,7 +318,17 @@ class Window(QtGui.QMainWindow):
         self.helpMenu.addAction(self.aboutAct)
         self.helpMenu.addAction(self.aboutQtAct)
 
+
+        self.viewMenu = QtGui.QMenu("&View", self)
+        self.viewMenu.addAction(self.zoomInAct)
+        self.viewMenu.addAction(self.zoomOutAct)
+        self.viewMenu.addAction(self.normalSizeAct)
+        self.viewMenu.addSeparator()
+        self.viewMenu.addAction(self.fitToWindowAct)
+
         self.menuBar().addMenu(self.helpMenu)
+        self.menuBar().addMenu(self.viewMenu)
+
 
         if self.user is not None:
             self.userMenu =  QtGui.QMenu(("&%s %s" %(self.user.first_name , self.user.last_name)) , self)
@@ -259,6 +339,24 @@ class Window(QtGui.QMainWindow):
     def about(self):
         dialog = aboutDetailsDialog(self)
         dialog.exec_()
+
+    def scaleImage(self, factor):
+        self.scaleFactor *= factor
+        self.imageLabel.resize(self.scaleFactor * self.imageLabel.pixmap().size())
+
+        self.adjustScrollBar(self.scrollArea.horizontalScrollBar(), factor)
+        self.adjustScrollBar(self.scrollArea.verticalScrollBar(), factor)
+
+        self.zoomInAct.setEnabled(self.scaleFactor < 3.0)
+        self.zoomOutAct.setEnabled(self.scaleFactor > 0.333)
+
+    def adjustScrollBar(self, scrollBar, factor):
+        scrollBar.setValue(int(factor * scrollBar.value()
+                                + ((factor - 1) * scrollBar.pageStep()/2)))
+    def updateActions(self):
+        self.zoomInAct.setEnabled(not self.fitToWindowAct.isChecked())
+        self.zoomOutAct.setEnabled(not self.fitToWindowAct.isChecked())
+        self.normalSizeAct.setEnabled(not self.fitToWindowAct.isChecked())
 
 if __name__ == '__main__':
 

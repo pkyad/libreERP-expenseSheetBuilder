@@ -2,7 +2,7 @@ from reportlab import *
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm, mm
-from reportlab.lib import colors
+from reportlab.lib import colors , utils
 from reportlab.platypus import Paragraph, Table, TableStyle, Image, Frame, Spacer, PageBreak, BaseDocTemplate, PageTemplate, SimpleDocTemplate, Flowable
 from PIL import Image
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet, TA_CENTER
@@ -12,6 +12,20 @@ import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 print BASE_DIR
+
+class FullPageImage(Flowable):
+    def __init__(self , img):
+        Flowable.__init__(self)
+        self.image = img
+
+    def draw(self):
+        img = utils.ImageReader(self.image)
+
+        iw, ih = img.getSize()
+        aspect = ih / float(iw)
+        width, self.height = PAGE_SIZE
+        width -= 3.5*cm
+        self.canv.drawImage(os.path.join(BASE_DIR , self.image) , -1 *MARGIN_SIZE + 1.5*cm , -1* self.height + 5*cm , width, aspect*width)
 
 class expanseReportHead(Flowable):
 
@@ -43,7 +57,6 @@ class expanseReportHead(Flowable):
         # barcode39.drawOn(self.canv,160*mm,0*mm)
         self.canv.drawImage(os.path.join(BASE_DIR , 'logo.png') , 80*mm , 0*mm , 2*cm, 2*cm)
 
-
 def addPageNumber(canvas, doc):
     """
     Add the page number
@@ -52,12 +65,13 @@ def addPageNumber(canvas, doc):
     barcode39 = barcode.createBarcodeDrawing('EAN13', value = barcode_value,barWidth=0.3*mm,barHeight=10*mm)
 
     barcode39.drawOn(canvas,160*mm,270*mm)
-
     # page_num = canvas.getPageNumber()
     # text = "<font size='8'>Page #%s</font>" % page_num
     # p = Paragraph(text , styleN)
     # p.wrapOn(canvas , 50*mm , 10*mm)
     # p.drawOn(canvas , 100*mm , 10*mm)
+
+
 
 class PageNumCanvas(canvas.Canvas):
 
@@ -88,6 +102,7 @@ class PageNumCanvas(canvas.Canvas):
             canvas.Canvas.showPage(self)
 
         canvas.Canvas.save(self)
+
 
     #----------------------------------------------------------------------
     def draw_page_number(self, page_count):
@@ -176,6 +191,13 @@ summryParaSrc = """
 
 """
 story.append(Paragraph(summryParaSrc , styleN))
+
+scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
+for s in scans:
+    story.append(PageBreak())
+    story.append(FullPageImage(s))
+
+
 pdf_doc.build(story,onFirstPage=addPageNumber, onLaterPages=addPageNumber, canvasmaker=PageNumCanvas)
 
 # c.showPage()

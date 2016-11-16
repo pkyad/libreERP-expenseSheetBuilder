@@ -107,7 +107,7 @@ class searchVendorDialog(QtGui.QDialog):
 
     def handleSearch(self):
 
-        r = libreHTTP('/api/HR/users/?username__startswith=' + self.searchEdit.text())
+        r = libreHTTP('/api/ERP/service/?name__startswith=' + self.searchEdit.text())
         self.results = r.json()
 
         self.resultGb.deleteLater()
@@ -128,7 +128,10 @@ class searchVendorDialog(QtGui.QDialog):
         self.table.setFixedHeight(370)
         vendors = []
         for v in self.results:
-            vendors.append({'name' : v['username'] , 'pk' : v['pk'] , 'address' : 'an address str'})
+            add = v['address']
+            addStr = add['street'] + '\n' + add['city'] + '\n' + add['state'] + '\n' + str(add['pincode'])
+            v['address'] = addStr
+            vendors.append({'name' : v['name'] , 'pk' : v['pk'] , 'address' : v['address']})
 
         self.table.setRowCount(len(vendors))
 

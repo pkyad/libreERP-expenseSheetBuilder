@@ -76,11 +76,19 @@ class Window(QtGui.QMainWindow):
         scanAction.setShortcut('Ctrl+S')
         scanAction.triggered.connect(self.scanActionHandler)
 
+        zoomInAction = QtGui.QAction(QtGui.QIcon('./essential_icons/zoom-in.png'), 'Zoom In', self)
+        zoomInAction.triggered.connect(self.zoomIn)
+
+        zoomOutAction = QtGui.QAction(QtGui.QIcon('./essential_icons/zoom-out.png'), 'Zoom Out', self)
+        zoomOutAction.triggered.connect(self.zoomOut)
 
         self.toolbar = self.addToolBar('main')
         self.toolbar.addAction(newAction)
         self.toolbar.addAction(scanAction)
+        self.toolbar.addAction(zoomInAction)
+        self.toolbar.addAction(zoomOutAction)
         self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.toolbar.setIconSize(QtCore.QSize(15,15))
 
         self.scaleFactor = 0.0
         self.imageLabel = QtGui.QLabel()
@@ -141,6 +149,7 @@ class Window(QtGui.QMainWindow):
         cal = QtGui.QCalendarWidget(self)
         cal.setGridVisible(True)
         cal.clicked[QtCore.QDate].connect(self.showDate)
+        cal.setVerticalHeaderFormat(QtGui.QCalendarWidget.NoVerticalHeader)
 
         btn = QtGui.QPushButton('Save')
         btn.clicked.connect(self.saveBillDetails)
@@ -170,7 +179,7 @@ class Window(QtGui.QMainWindow):
         self.formLayout.setMargin(0)
         self.form.setLayout(self.formLayout)
         self.form.setMinimumWidth(300)
-        self.form.setMaximumWidth(400)
+        self.form.setMaximumWidth(350)
 
         self.mainLayout = QtGui.QGridLayout()
         self.mainLayout.addWidget(self.scrollArea , 0,0)
@@ -179,6 +188,9 @@ class Window(QtGui.QMainWindow):
 
         self.setCentralWidget(QtGui.QWidget(self))
         self.centralWidget().setLayout(self.mainLayout)
+
+        self.changeImageInView(0,0,0,0)
+
     def changeImageInView(self, row , col , oldRow , oldCol):
 
         image = QtGui.QImage(self.scans[row])
@@ -198,13 +210,13 @@ class Window(QtGui.QMainWindow):
 
         dialog = searchVendorDialog(self)
         if dialog.exec_() == QtGui.QDialog.Accepted:
-            self.vendorEdit.setText(dialog.selectedValue['first_name'])
+            self.vendorEdit.setText(dialog.selectedValue['name'])
 
             self.vendorDetailsGb.deleteLater()
             self.vendorDetailsGb = None
             self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
             self.vendorLyt = QtGui.QGridLayout()
-            self.vendorLyt.addWidget(QtGui.QLabel(QtCore.QString('<span style=" font-size:8pt; font-weight:600; color:black;">Name : </span>' + dialog.selectedValue['first_name'] + '<br/><span style=" font-size:8pt; font-weight:600; color:black;"> Address : </span>' + 'An address line 1 <br/> second line <br/>  201301')))
+            self.vendorLyt.addWidget(QtGui.QLabel(QtCore.QString('<span style=" font-size:8pt; font-weight:600; color:black;">Name : </span>' + dialog.selectedValue['name'] + '<br/><span style=" font-size:8pt; font-weight:600; color:black;"> Address : </span>' + dialog.selectedValue['address'])))
             self.vendorDetailsGb.setLayout(self.vendorLyt)
             self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
 

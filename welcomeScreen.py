@@ -59,6 +59,11 @@ def getConfigs():
     configs = {}
     conf = open(os.path.expanduser('~/.libreerp/config.txt'))
     for r in conf.readlines():
+        if r.startswith('#'):
+            r = r.replace('#' , '')
+            parts = r.split('=')
+            configs[parts[0]] = None
+            continue
         val = r.split('=')[1].replace('\n' , '')
         if r.startswith('proxy'):
             proxies = {
@@ -88,7 +93,7 @@ class loginScreen(QtGui.QDialog):
         super(loginScreen, self).__init__()
 
         self.usernameEdit = QtGui.QLineEdit('admin')
-        self.passwordEdit = QtGui.QLineEdit('indiaerp')
+        self.passwordEdit = QtGui.QLineEdit('123')
         self.passwordEdit.setEchoMode(QtGui.QLineEdit.Password)
         loginBtn = QtGui.QPushButton('Login')
         loginBtn.clicked.connect(self.login)
@@ -127,9 +132,12 @@ class loginScreen(QtGui.QDialog):
         passwrd = self.passwordEdit.text()
 
         session = requests.Session()
-
-        r = session.get( configs['domain'] + '/login/' , proxies = configs['proxy'])
+        if configs['proxy'] is None:
+            r = session.get( configs['domain'] + '/login/' )
+        else:
+            r = session.get( configs['domain'] + '/login/' , proxies = configs['proxy'])
         r = session.post( configs['domain'] + '/login/' , {'username' : str(uName) ,'password': str(passwrd), 'csrfmiddlewaretoken': session.cookies['csrftoken'] })
+        print r.text
 
         if r.status_code == 200:
             sessionID = session.cookies['sessionid']

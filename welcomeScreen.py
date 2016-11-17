@@ -137,8 +137,7 @@ class loginScreen(QtGui.QDialog):
         else:
             r = session.get( configs['domain'] + '/login/' , proxies = configs['proxy'])
         r = session.post( configs['domain'] + '/login/' , {'username' : str(uName) ,'password': str(passwrd), 'csrfmiddlewaretoken': session.cookies['csrftoken'] })
-        print r.text
-
+        print 'status_code' , r.status_code
         if r.status_code == 200:
             sessionID = session.cookies['sessionid']
             csrfToken = session.cookies['csrftoken']
@@ -149,12 +148,30 @@ class loginScreen(QtGui.QDialog):
             r = session.get( configs['domain'] + '/api/HR/users/?mode=mySelf')
             urs = r.json()
             self.user = User(urs[0])
-            print self.user
             self.accept()
         else:
-            print 'error loging in'
-            print r.status_code
-            print r.text
+            print 'came 5'
+            msg = QtGui.QMessageBox()
+            print 'came 6'
+            if r.status_code == 423:
+                message = 'Account disabled'
+                msg.setIcon(QtGui.QMessageBox.Information)
+            elif r.status_code == 401:
+                message = 'Wrong password or username'
+                msg.setIcon(QtGui.QMessageBox.Warning)
+            else:
+                message = 'Error : ' + str(r.status_code)
+                msg.setIcon(QtGui.QMessageBox.Warning)
+
+            print 'came 1'
+            msg.setText(message)
+            print 'came 4'
+            msg.setWindowTitle("Error logging in")
+            print 'came 3'
+            msg.setStandardButtons(QtGui.QMessageBox.Ok)
+            print 'came 2'
+            retval = msg.exec_()
+
 
 def openLoginDialog():
 

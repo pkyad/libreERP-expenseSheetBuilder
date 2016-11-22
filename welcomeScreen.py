@@ -179,6 +179,7 @@ def openLoginDialog():
     welcomeScreen = loginScreen()
     if welcomeScreen.exec_() == QtGui.QDialog.Accepted:
         return welcomeScreen
+    sys.exit()
 
 def getCookiedSession():
     session = requests.Session()

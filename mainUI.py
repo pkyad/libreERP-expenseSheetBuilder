@@ -114,7 +114,7 @@ class Window(QtGui.QMainWindow):
         self.table.horizontalHeader().hide()
         self.table.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.table.cellDoubleClicked .connect(self.doubleClickedItem)
+        # self.table.cellDoubleClicked .connect(self.doubleClickedItem)
 
         self.scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
 
@@ -146,6 +146,8 @@ class Window(QtGui.QMainWindow):
 
         dateLbl = QtGui.QLabel('Date')
 
+        self.dateSelectedLbl = QtGui.QLabel('No date selected')
+
         cal = QtGui.QCalendarWidget(self)
         cal.setGridVisible(True)
         cal.clicked[QtCore.QDate].connect(self.showDate)
@@ -157,18 +159,23 @@ class Window(QtGui.QMainWindow):
         searchVendorBtn = QtGui.QPushButton('Search vendor')
         searchVendorBtn.clicked.connect(self.searchVendorHandler)
 
+        self.expenseSheetIDLbl = QtGui.QLabel('IS-123')
 
-        self.formAreaLayout.addWidget(vendorLbl , 0,0)
-        self.formAreaLayout.addWidget(self.vendorEdit , 0,1)
+        self.formAreaLayout.addWidget(QtGui.QLabel('Sheet ID') , 0,0)
+        self.formAreaLayout.addWidget(self.expenseSheetIDLbl , 0,1)
+
+        self.formAreaLayout.addWidget(vendorLbl , 1,0)
+        self.formAreaLayout.addWidget(self.vendorEdit , 1,1)
         self.formAreaLayout.addWidget(searchVendorBtn , 1,1)
         self.updateVendorDetails()
-        self.formAreaLayout.addWidget(descLbl , 3,0)
-        self.formAreaLayout.addWidget(descEdit , 3,1)
-        self.formAreaLayout.addWidget(amountLbl , 4,0)
-        self.formAreaLayout.addWidget(amountEdit , 4,1)
-        self.formAreaLayout.addWidget(dateLbl , 5,0)
-        self.formAreaLayout.addWidget(cal , 5,1)
-        self.formAreaLayout.addWidget(btn , 6,0)
+        self.formAreaLayout.addWidget(descLbl , 4,0)
+        self.formAreaLayout.addWidget(descEdit , 4,1)
+        self.formAreaLayout.addWidget(amountLbl , 5,0)
+        self.formAreaLayout.addWidget(amountEdit , 5,1)
+        self.formAreaLayout.addWidget(dateLbl , 6,0)
+        self.formAreaLayout.addWidget(cal , 6,1)
+        self.formAreaLayout.addWidget(self.dateSelectedLbl , 7,1)
+        self.formAreaLayout.addWidget(btn , 8,0)
         self.formAreaLayout.setMargin(0)
         self.formArea.setLayout(self.formAreaLayout)
 
@@ -191,6 +198,15 @@ class Window(QtGui.QMainWindow):
 
         self.changeImageInView(0,0,0,0)
 
+        print self.scrollArea.width()
+        print self.scrollArea.height()
+        print self.imageLabel.width()
+        print self.imageLabel.height()
+        print self.zoomOutAct.isEnabled()
+
+
+
+
     def changeImageInView(self, row , col , oldRow , oldCol):
 
         image = QtGui.QImage(self.scans[row])
@@ -204,6 +220,9 @@ class Window(QtGui.QMainWindow):
         if not self.fitToWindowAct.isChecked():
             self.imageLabel.adjustSize()
         # pass
+
+        while self.imageLabel.width() > self.scrollArea.width() and self.zoomOutAct.isEnabled():
+            self.zoomOut()
 
 
     def searchVendorHandler(self):
@@ -228,16 +247,15 @@ class Window(QtGui.QMainWindow):
             self.vendorLyt = QtGui.QGridLayout()
             self.vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor to see its details'))
             self.vendorDetailsGb.setLayout(self.vendorLyt)
-            self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
+            self.formAreaLayout.addWidget(self.vendorDetailsGb , 3,1)
         else:
             pass
-
 
     def saveBillDetails(self):
         pass
 
     def showDate(self , date):
-        print date
+        self.dateSelectedLbl.setText(date.toString('dd-MMM-yyyy'))
 
     def getImgWidget(self , s):
         imageLabel = QtGui.QLabel()
@@ -253,13 +271,8 @@ class Window(QtGui.QMainWindow):
         wdg.setLayout(wdgLt)
         return wdg
 
-    def goToPrev(self):
-        pass
-    def goToNext(self):
-        pass
-
-    def doubleClickedItem(self):
-        pass
+    # def doubleClickedItem(self):
+    #     pass
 
     def newFileActionHandler(self):
         pass

@@ -223,7 +223,7 @@ def getLibreUser():
     user = User(urs[0])
     return user
 
-def libreHTTP(url ,method = 'get'):
+def HTTP(url ,method = 'get'):
     ses = getCookiedSession()
     configs = getConfigs()
     r = ses.get( configs['domain'] + url , proxies = configs['proxy'])

@@ -56,7 +56,7 @@ import string
 import random
 import json
 import xml.etree.ElementTree as ET
-from welcomeScreen import getLibreUser
+from libreerp.ui import getLibreUser
 
 
 # class Window(QtGui.QMainWindow , ApplicationSession):
@@ -245,7 +245,7 @@ class Window(QtGui.QMainWindow):
         if vendor is None:
             self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
             self.vendorLyt = QtGui.QGridLayout()
-            self.vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor to see its details'))
+            self.vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor <br/> to see its details'))
             self.vendorDetailsGb.setLayout(self.vendorLyt)
             self.formAreaLayout.addWidget(self.vendorDetailsGb , 3,1)
         else:
@@ -401,6 +401,7 @@ if __name__ == '__main__':
     #
     # # if wamp is not required
     usr = getLibreUser()
+    print usr
     app = QtGui.QApplication(sys.argv)
     window = Window(user = usr)
     window.show()

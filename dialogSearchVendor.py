@@ -34,7 +34,7 @@
 #############################################################################
 
 from PyQt4 import QtCore, QtGui
-from welcomeScreen import getCookiedSession , getConfigs , libreHTTP
+from libreerp.ui import getCookiedSession , getConfigs , libreHTTP
 
 
 class searchVendorDialog(QtGui.QDialog):
@@ -122,7 +122,7 @@ class searchVendorDialog(QtGui.QDialog):
         self.table.setHorizontalHeaderLabels(QtCore.QString(";Name;ID;Address").split(";"))
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().hide()
-        self.table.setColumnWidth(0,16)
+        self.table.setColumnWidth(0,20)
         self.table.setColumnWidth(1,230)
         self.table.setColumnWidth(2,120)
         self.table.setFixedHeight(370)

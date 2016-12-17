@@ -4,12 +4,12 @@ u = getLibreUser()
 print u
 
 d = {
-    'user' : 3,
     'service' : 1,
-    'amount' : 000,
+    'amount' : 1000,
     'currency' : 'INR',
-    'dated' : '2017-01-01',
-    'sheet' : 2,
+    'dated' : '2017-01-02',
+    'sheet' : 1,
+    'description' : 'a desc text from python'
 
 }
 

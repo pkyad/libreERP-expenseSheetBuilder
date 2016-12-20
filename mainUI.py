@@ -56,13 +56,31 @@ import string
 import random
 import json
 import xml.etree.ElementTree as ET
-from libreerp.ui import getLibreUser
+from libreerp.ui import getLibreUser , libreHTTPDownload
+from dialogStart import WelcomeDialog
+from dialogSearchSheet import searchSheetDialog
+from dialogNewSheet import NewSheetDialog
 
 
 # class Window(QtGui.QMainWindow , ApplicationSession):
 class Window(QtGui.QMainWindow):
-    def __init__(self , parent = None, config=None , user = None):
+    def __init__(self , parent = None, config=None , user = None, sheet = None , name = None , mode = None):
         super(Window, self).__init__(parent)
+
+        self.scans = []
+
+        if mode == 'New':
+            self.scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
+
+        elif mode == 'Open':
+            if sheet is None:
+                print 'No sheet data provided'
+            else:
+                for i in sheet['invoices']:
+                    link = i['attachment']
+                    path , name = libreHTTPDownload(link , os.path.join(os.path.dirname(os.path.abspath(__file__)) , 'temp'))
+                    self.scans.append(path)
+
         self.user = user
         self.showMaximized()
         self.createActions()
@@ -71,6 +89,10 @@ class Window(QtGui.QMainWindow):
         newAction = QtGui.QAction(QtGui.QIcon('./essential_icons/file.png'), 'New', self)
         newAction.setShortcut('Ctrl+N')
         newAction.triggered.connect(self.newFileActionHandler)
+
+        openAction = QtGui.QAction(QtGui.QIcon('./essential_icons/folder-2.png'), 'Open', self)
+        openAction.setShortcut('Ctrl+O')
+        openAction.triggered.connect(self.openFileActionHandler)
 
         scanAction = QtGui.QAction(QtGui.QIcon('./essential_icons/fax.png'), 'Scan', self)
         scanAction.setShortcut('Ctrl+S')
@@ -84,6 +106,7 @@ class Window(QtGui.QMainWindow):
 
         self.toolbar = self.addToolBar('main')
         self.toolbar.addAction(newAction)
+        self.toolbar.addAction(openAction)
         self.toolbar.addAction(scanAction)
         self.toolbar.addAction(zoomInAction)
         self.toolbar.addAction(zoomOutAction)
@@ -116,7 +139,7 @@ class Window(QtGui.QMainWindow):
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         # self.table.cellDoubleClicked .connect(self.doubleClickedItem)
 
-        self.scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
+
 
         self.table.setRowCount(len(self.scans))
         for i in range(len(self.scans)):
@@ -276,13 +299,25 @@ class Window(QtGui.QMainWindow):
 
     def newFileActionHandler(self):
         pass
+
+    def openFileActionHandler(self):
+        pass
+
     def scanActionHandler(self):
         pass
 
+    def exitHandler(self):
+        if QtGui.QMessageBox.question(None, '', "Are you sure you want to quit?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            QtGui.QApplication.quit()
+
     def createActions(self):
+
+        self.newAct = QtGui.QAction("&New", self, triggered=self.about)
+        self.openAct = QtGui.QAction("&Open", self, shortcut="Ctrl+O", triggered=self.about)
+        self.exitAct = QtGui.QAction("&Exit", self, triggered=self.exitHandler)
+
         self.printAct = QtGui.QAction("&Print...", self, shortcut="Ctrl+P",
                 enabled=False, triggered=self.print_)
-
 
         self.aboutQtAct = QtGui.QAction("About &Qt", self,
                 triggered=QtGui.qApp.aboutQt)
@@ -339,6 +374,12 @@ class Window(QtGui.QMainWindow):
 
     def createMenus(self):
 
+        self.fileMenu = QtGui.QMenu("&File", self)
+        self.fileMenu.addAction(self.newAct)
+        self.fileMenu.addAction(self.openAct)
+        self.fileMenu.addAction(self.exitAct)
+        self.fileMenu.addAction(self.printAct)
+
         self.helpMenu = QtGui.QMenu("&Help", self)
         self.helpMenu.addAction(self.aboutAct)
         self.helpMenu.addAction(self.aboutQtAct)
@@ -351,8 +392,9 @@ class Window(QtGui.QMainWindow):
         self.viewMenu.addSeparator()
         self.viewMenu.addAction(self.fitToWindowAct)
 
-        self.menuBar().addMenu(self.helpMenu)
+        self.menuBar().addMenu(self.fileMenu)
         self.menuBar().addMenu(self.viewMenu)
+
 
 
         if self.user is not None:
@@ -360,6 +402,9 @@ class Window(QtGui.QMainWindow):
             self.userMenu.addAction(self.logoutAct)
 
             self.menuBar().addMenu(self.userMenu)
+
+        self.menuBar().addMenu(self.helpMenu)
+
 
     def about(self):
         dialog = aboutDetailsDialog(self)
@@ -400,10 +445,40 @@ if __name__ == '__main__':
     # runner.run(Window)
     #
     # # if wamp is not required
+
+
     usr = getLibreUser()
+
     print usr
     app = QtGui.QApplication(sys.argv)
-    window = Window(user = usr)
+
+    welcome = WelcomeDialog()
+    invalid = False
+    sheetName = None
+    sheet = None
+
+    if welcome.exec_() == QtGui.QDialog.Accepted:
+        print welcome.mode
+        if welcome.mode == 'New':
+            newSheet = NewSheetDialog()
+            if newSheet.exec_() == QtGui.QDialog.Accepted:
+                sheetName = newSheet.sheetName
+            else:
+                invalid = True
+        elif welcome.mode == 'Open':
+            search = searchSheetDialog()
+            if search.exec_() == QtGui.QDialog.Accepted:
+                sheet = search.selectedValue
+            else:
+                invalid = True
+        if invalid:
+            sys.exit()
+    else:
+        sys.exit()
+
+    print sheet
+
+    window = Window(user = usr , sheet = sheet , name = sheetName , mode = welcome.mode)
     window.show()
 
     sys.exit(app.exec_())

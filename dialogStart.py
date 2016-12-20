@@ -38,33 +38,36 @@ from libreerp.ui import getCookiedSession , getConfigs , libreHTTP
 
 
 
-class NewSheetDialog(QtGui.QDialog):
+class WelcomeDialog(QtGui.QDialog):
     def __init__(self, parent = None):
-        super(NewSheetDialog, self).__init__(parent)
-        self.setWindowTitle('Create new sheet')
+        super(WelcomeDialog, self).__init__(parent)
+        self.setWindowTitle('Expense Sheet Builder')
         self.setFixedWidth(500)
-        # self.setFixedHeight(500)
-        lbl = QtGui.QLabel('Name')
-        self.lineEdit = QtGui.QLineEdit()
+        self.setFixedHeight(400)
+        newBtn = QtGui.QPushButton('New')
+        newBtn.setIcon(QtGui.QIcon('./essential_icons/file.png'))
+        newBtn.setIconSize(QtCore.QSize(100,100))
+        newBtn.clicked.connect(self.handleNew)
+        newBtn.setFixedWidth(150)
+        # newBtn.setContentsMargins(20,20,20,20)
+
+        openBtn = QtGui.QPushButton('Open')
+        openBtn.setIcon(QtGui.QIcon('./essential_icons/folder-2.png'))
+        openBtn.setIconSize(QtCore.QSize(100,100))
+        openBtn.setFixedWidth(150)
+        openBtn.clicked.connect(self.handleOpen)
 
         lyt = QtGui.QGridLayout()
-        lyt.addWidget(lbl,0,0)
-        lyt.addWidget(self.lineEdit, 0,1)
-
-        self.buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
-
-        self.buttonBox.accepted.connect(self.okayHandler)
-        self.buttonBox.rejected.connect(self.cancelHandler)
-
-        lyt.addWidget(self.buttonBox , 1, 1)
-
+        lyt.addWidget(newBtn ,0,0)
+        lyt.addWidget(openBtn ,0,1)
         self.setLayout(lyt)
 
-    def cancelHandler(self):
-        self.reject()
+    def handleNew(self):
+        self.mode = 'New'
+        self.accept()
 
-    def okayHandler(self):
-        self.sheetName = self.lineEdit.text()
+    def handleOpen(self):
+        self.mode = 'Open'
         self.accept()
 
 
@@ -72,8 +75,7 @@ if __name__ == '__main__':
 
     import sys
     app = QtGui.QApplication(sys.argv)
-    screen = NewSheetDialog()
+    screen = WelcomeDialog()
     if screen.exec_() == QtGui.QDialog.Accepted:
-        print screen.sheetID
         sys.exit()
     sys.exit()

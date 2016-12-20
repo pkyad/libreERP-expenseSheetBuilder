@@ -32,14 +32,14 @@
 ## $QT_END_LICENSE$
 ##
 #############################################################################
-
+import datetime
 from PyQt4 import QtCore, QtGui
 from libreerp.ui import getCookiedSession , getConfigs , libreHTTP
+import pytz
 
-
-class searchVendorDialog(QtGui.QDialog):
+class searchSheetDialog(QtGui.QDialog):
     def __init__(self, parent = None):
-        super(searchVendorDialog, self).__init__(parent)
+        super(searchSheetDialog, self).__init__(parent)
         self.results = []
         self.setWindowTitle('Search expense sheets')
 
@@ -135,14 +135,21 @@ class searchVendorDialog(QtGui.QDialog):
         self.accept()
 
     def handleSearch(self):
-        params = {'name__contains' : str(self.searchEdit.text()),
-            'dated' : str(self.cal.selectedDate().toString('dd-MM-yyyy'))}
-        r = libreHTTP('/api/finance/invoice/', params=params)
+        params = {'notes__contains' : str(self.searchEdit.text()),
+            'created' : str(self.cal.selectedDate().toString('dd-MM-yyyy'))}
+        r = libreHTTP('/api/finance/expenseSheet/', params=params)
         self.results = r.json()
 
+        utc=pytz.UTC
         vendors = []
         for v in self.results:
-            vendors.append({'description' : v['description'] , 'ID' : v['pk'] , 'amount': v['amount'], 'dated' : v['dated']})
+            d = datetime.datetime.strptime(v['created'], '%Y-%m-%dT%H:%M:%S.%fZ')
+            d = d.replace(tzinfo=utc)
+            vendors.append({'notes' : v['notes'] , 'ID' : v['pk'] , 'project': v['project'], 'created' : d})
+
+        print d
+        print dir(d)
+
 
         if len(vendors)==0:
             return
@@ -158,7 +165,7 @@ class searchVendorDialog(QtGui.QDialog):
 
         self.table = QtGui.QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(QtCore.QString(";Description;ID;Amount;Dated").split(";"))
+        self.table.setHorizontalHeaderLabels(QtCore.QString(";Notes;ID;Project;Created").split(";"))
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().hide()
         self.table.setColumnWidth(0,20)
@@ -175,10 +182,10 @@ class searchVendorDialog(QtGui.QDialog):
             i = vendors.index(v)
             self.radioBtnArray.append(QtGui.QRadioButton())
             self.table.setCellWidget(i,0, self.radioBtnArray[i])
-            self.table.setItem(i,1, QtGui.QTableWidgetItem(str(v['description'])))
+            self.table.setItem(i,1, QtGui.QTableWidgetItem(str(v['notes'])))
             self.table.setItem(i,2, QtGui.QTableWidgetItem(str(v['ID'])))
-            self.table.setItem(i,3, QtGui.QTableWidgetItem(str(v['amount'])))
-            self.table.setItem(i,4, QtGui.QTableWidgetItem(str(v['dated'])))
+            self.table.setItem(i,3, QtGui.QTableWidgetItem(str(v['project'])))
+            self.table.setItem(i,4, QtGui.QTableWidgetItem(str(v['created'])))
 
         self.resultGbLayout.addWidget(self.table)
         self.resultGb.setLayout(self.resultGbLayout)
@@ -189,7 +196,7 @@ if __name__ == '__main__':
 
     import sys
     app = QtGui.QApplication(sys.argv)
-    screen = searchVendorDialog()
+    screen = searchSheetDialog()
     if screen.exec_() == QtGui.QDialog.Accepted:
         print screen.selectedValue
         sys.exit()

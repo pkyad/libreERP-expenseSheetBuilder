@@ -70,16 +70,11 @@ class Window(QtGui.QMainWindow):
         self.scans = []
 
         if mode == 'New':
+            # self.sheetID = sheet['pk']
             self.scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
 
         elif mode == 'Open':
-            if sheet is None:
-                print 'No sheet data provided'
-            else:
-                for i in sheet['invoices']:
-                    link = i['attachment']
-                    path , name = libreHTTPDownload(link , os.path.join(os.path.dirname(os.path.abspath(__file__)) , 'temp'))
-                    self.scans.append(path)
+            self.openSheet(sheet)
 
         self.user = user
         self.showMaximized()
@@ -141,15 +136,7 @@ class Window(QtGui.QMainWindow):
 
 
 
-        self.table.setRowCount(len(self.scans))
-        for i in range(len(self.scans)):
-            s = self.scans[i]
-            self.table.setCellWidget(i,0 , self.getImgWidget(s))
-            self.table.setRowHeight(i, 300)
-        self.table.currentCellChanged.connect(self.changeImageInView)
-
-        # self.configureWidget = QtGui.QWidget()
-        self.table.setMaximumWidth(240)
+        self.refreshScansList()
         # self.configureWidget.setLayout(self.table)
 
         self.formArea = QtGui.QWidget()
@@ -297,11 +284,46 @@ class Window(QtGui.QMainWindow):
     # def doubleClickedItem(self):
     #     pass
 
+    def refreshScansList(self):
+        self.table.setRowCount(len(self.scans))
+        for i in range(len(self.scans)):
+            s = self.scans[i]
+            self.table.setCellWidget(i,0 , self.getImgWidget(s))
+            self.table.setRowHeight(i, 300)
+        self.table.currentCellChanged.connect(self.changeImageInView)
+
+        # self.configureWidget = QtGui.QWidget()
+        self.table.setMaximumWidth(240)
+
     def newFileActionHandler(self):
-        pass
+        if QtGui.QMessageBox.question(None, '', "Are you sure you want to start a new ? any unsaved data will be lost", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            self.scans = []
+            self.refreshScansList()
+            self.imageLabel = QtGui.QLabel()
+            self.imageLabel.setBackgroundRole(QtGui.QPalette.Base)
+            self.imageLabel.setSizePolicy(QtGui.QSizePolicy.Ignored,
+                    QtGui.QSizePolicy.Ignored)
+            self.imageLabel.setScaledContents(True)
+            self.scrollArea.setWidget(self.imageLabel)
+
 
     def openFileActionHandler(self):
-        pass
+        search = searchSheetDialog()
+        if search.exec_() == QtGui.QDialog.Accepted:
+            sheet = search.selectedValue
+            self.openSheet(sheet , alreadyOpen = True)
+
+    def openSheet(self , sheet , alreadyOpen = False):
+        if sheet is None:
+            print 'No sheet data provided'
+        else:
+            self.sheetID = sheet['pk']
+            for i in sheet['invoices']:
+                link = i['attachment']
+                path , name = libreHTTPDownload(link , os.path.join(os.path.dirname(os.path.abspath(__file__)) , 'temp'))
+                self.scans.append(path)
+            if alreadyOpen:
+                self.refreshScansList()
 
     def scanActionHandler(self):
         pass
@@ -312,8 +334,8 @@ class Window(QtGui.QMainWindow):
 
     def createActions(self):
 
-        self.newAct = QtGui.QAction("&New", self, triggered=self.about)
-        self.openAct = QtGui.QAction("&Open", self, shortcut="Ctrl+O", triggered=self.about)
+        self.newAct = QtGui.QAction("&New", self, triggered=self.newFileActionHandler)
+        self.openAct = QtGui.QAction("&Open", self, shortcut="Ctrl+O", triggered=self.openFileActionHandler)
         self.exitAct = QtGui.QAction("&Exit", self, triggered=self.exitHandler)
 
         self.printAct = QtGui.QAction("&Print...", self, shortcut="Ctrl+P",
@@ -341,6 +363,7 @@ class Window(QtGui.QMainWindow):
         self.logoutAct = QtGui.QAction("Logout" , self , triggered = self.logout)
 
     def print_(self):
+        # fix it
         dialog = QtGui.QPrintDialog(self.printer, self)
         if dialog.exec_():
             painter = QtGui.QPainter(self.printer)

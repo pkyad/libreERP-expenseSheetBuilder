@@ -37,6 +37,10 @@ from PyQt4 import QtCore, QtGui
 from libreerp.ui import getCookiedSession , getConfigs , libreHTTP
 
 
+def addressToString(addr):
+    return addr['street'] + '\n' + addr['city'] + '\n' + addr['state'] + '\n' + str(addr['pincode'])
+
+
 class searchVendorDialog(QtGui.QDialog):
     def __init__(self, parent = None):
         super(searchVendorDialog, self).__init__(parent)
@@ -130,9 +134,8 @@ class searchVendorDialog(QtGui.QDialog):
         self.table.setFixedHeight(370)
         vendors = []
         for v in self.results:
-            add = v['address']
-            addStr = add['street'] + '\n' + add['city'] + '\n' + add['state'] + '\n' + str(add['pincode'])
-            v['address'] = addStr
+            addr = v['address']
+            v['address'] = addressToString(addr)
             vendors.append({'name' : v['name'] , 'pk' : v['pk'] , 'address' : v['address']})
 
         self.table.setRowCount(len(vendors))

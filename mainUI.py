@@ -29,7 +29,6 @@
 ## THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-## $QT_END_LICENSE$
 ##
 #############################################################################
 
@@ -43,6 +42,8 @@ from PyQt4 import QtCore, QtGui, QtOpenGL
 import lxml.etree as etree
 from xml.dom import minidom
 from dialogSearchVendor import searchVendorDialog
+from datetime import datetime
+import pytz
 
 try:
     from OpenGL import GL
@@ -56,10 +57,25 @@ import string
 import random
 import json
 import xml.etree.ElementTree as ET
-from libreerp.ui import getLibreUser , libreHTTPDownload
+from libreerp.ui import getLibreUser , libreHTTPDownload , libreHTTP
 from dialogStart import WelcomeDialog
 from dialogSearchSheet import searchSheetDialog
 from dialogNewSheet import NewSheetDialog
+from dialogSearchVendor import addressToString
+
+import os, shutil
+from wand.image import Image
+import time
+
+def cleanFolder(folder):
+    for the_file in os.listdir(folder):
+        file_path = os.path.join(folder, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            #elif os.path.isdir(file_path): shutil.rmtree(file_path)
+        except Exception as e:
+            print(e)
 
 
 # class Window(QtGui.QMainWindow , ApplicationSession):
@@ -99,12 +115,20 @@ class Window(QtGui.QMainWindow):
         zoomOutAction = QtGui.QAction(QtGui.QIcon('./essential_icons/zoom-out.png'), 'Zoom Out', self)
         zoomOutAction.triggered.connect(self.zoomOut)
 
+        addFileAction = QtGui.QAction(QtGui.QIcon('./essential_icons/attachment.png'), 'Add File', self)
+        addFileAction.triggered.connect(self.addFile)
+
+        submitSheetAction = QtGui.QAction(QtGui.QIcon('./essential_icons/archive-3.png'), 'Review and Submit', self)
+        submitSheetAction.triggered.connect(self.reviewAndSubmit)
+
         self.toolbar = self.addToolBar('main')
         self.toolbar.addAction(newAction)
         self.toolbar.addAction(openAction)
         self.toolbar.addAction(scanAction)
         self.toolbar.addAction(zoomInAction)
         self.toolbar.addAction(zoomOutAction)
+        self.toolbar.addAction(addFileAction)
+        self.toolbar.addAction(submitSheetAction)
         self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.toolbar.setIconSize(QtCore.QSize(15,15))
 
@@ -134,8 +158,6 @@ class Window(QtGui.QMainWindow):
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         # self.table.cellDoubleClicked .connect(self.doubleClickedItem)
 
-
-
         self.refreshScansList()
         # self.configureWidget.setLayout(self.table)
 
@@ -148,23 +170,23 @@ class Window(QtGui.QMainWindow):
         self.vendorEdit.setEnabled(False)
 
         descLbl = QtGui.QLabel('Description')
-        descEdit = QtGui.QTextEdit()
-        descEdit.setMaximumHeight(200)
+        self.descEdit = QtGui.QTextEdit()
+        self.descEdit.setMaximumHeight(200)
 
         amountLbl = QtGui.QLabel('Amount')
-        amountEdit = QtGui.QLineEdit()
+        self.amountEdit = QtGui.QLineEdit()
 
         dateLbl = QtGui.QLabel('Date')
 
         self.dateSelectedLbl = QtGui.QLabel('No date selected')
 
-        cal = QtGui.QCalendarWidget(self)
-        cal.setGridVisible(True)
-        cal.clicked[QtCore.QDate].connect(self.showDate)
-        cal.setVerticalHeaderFormat(QtGui.QCalendarWidget.NoVerticalHeader)
+        self.cal = QtGui.QCalendarWidget(self)
+        self.cal.setGridVisible(True)
+        self.cal.clicked[QtCore.QDate].connect(self.showDate)
+        self.cal.setVerticalHeaderFormat(QtGui.QCalendarWidget.NoVerticalHeader)
 
-        btn = QtGui.QPushButton('Save')
-        btn.clicked.connect(self.saveBillDetails)
+        saveBtn = QtGui.QPushButton('Save')
+        saveBtn.clicked.connect(self.saveBillDetails)
 
         searchVendorBtn = QtGui.QPushButton('Search vendor')
         searchVendorBtn.clicked.connect(self.searchVendorHandler)
@@ -179,13 +201,13 @@ class Window(QtGui.QMainWindow):
         self.formAreaLayout.addWidget(searchVendorBtn , 1,1)
         self.updateVendorDetails()
         self.formAreaLayout.addWidget(descLbl , 4,0)
-        self.formAreaLayout.addWidget(descEdit , 4,1)
+        self.formAreaLayout.addWidget(self.descEdit , 4,1)
         self.formAreaLayout.addWidget(amountLbl , 5,0)
-        self.formAreaLayout.addWidget(amountEdit , 5,1)
+        self.formAreaLayout.addWidget(self.amountEdit , 5,1)
         self.formAreaLayout.addWidget(dateLbl , 6,0)
-        self.formAreaLayout.addWidget(cal , 6,1)
+        self.formAreaLayout.addWidget(self.cal , 6,1)
         self.formAreaLayout.addWidget(self.dateSelectedLbl , 7,1)
-        self.formAreaLayout.addWidget(btn , 8,0)
+        self.formAreaLayout.addWidget(saveBtn , 8,0)
         self.formAreaLayout.setMargin(0)
         self.formArea.setLayout(self.formAreaLayout)
 
@@ -208,16 +230,51 @@ class Window(QtGui.QMainWindow):
 
         self.changeImageInView(0,0,0,0)
 
-        print self.scrollArea.width()
-        print self.scrollArea.height()
-        print self.imageLabel.width()
-        print self.imageLabel.height()
-        print self.zoomOutAct.isEnabled()
+        # print self.scrollArea.width()
+        # print self.scrollArea.height()
+        # print self.imageLabel.width()
+        # print self.imageLabel.height()
+        # print self.zoomOutAct.isEnabled()
+    def reviewAndSubmit(self):
+        pass
+
+
+    def addFile(self):
+        fileName = QtGui.QFileDialog.getOpenFileName(self, "Existing scans file", QtCore.QDir.homePath())
+        tmpFolderPath = os.path.join(os.getcwd() , '.tmp')
+        try:
+            os.mkdir(tmpFolderPath)
+        except:
+            pass
+        if len(fileName)!=0:
+            cleanFolder(tmpFolderPath)
+            with Image(filename= str(fileName), resolution=300) as img:
+                img.save(filename=os.path.join(tmpFolderPath , "temp.png"))
+            for i, f in enumerate(os.listdir(tmpFolderPath)):
+                filePath =os.path.join(tmpFolderPath , f)
+                self.scans.append(filePath)
+                invoice = {'pk' : None , 'user' : self.user.pk , 'created' : datetime.now() , 'service' : None , 'amount' : 0 , 'currency': 'INR' , 'dated' : datetime.now() , 'attachment' : None , 'sheet' : self.sheetID , 'description' : '' , 'approved' : False , 'file' :  filePath}
+                self.sheet['invoices'].append(invoice)
+            self.refreshScansList()
 
 
 
 
     def changeImageInView(self, row , col , oldRow , oldCol):
+
+        invoice = self.sheet['invoices'][row]
+        amount = invoice['amount']
+        desc = invoice['description']
+        service = invoice['service']
+        dated = invoice['dated']
+        self.amountEdit.setText(str(amount))
+        self.descEdit.setText(desc)
+        print invoice['service']
+
+        self.showDate(dated)
+        self.cal.setSelectedDate(dated)
+        # if service is not None:
+        self.updateVendorInVIew(service)
 
         image = QtGui.QImage(self.scans[row])
         self.pixmap = QtGui.QPixmap.fromImage(image)
@@ -234,21 +291,29 @@ class Window(QtGui.QMainWindow):
         while self.imageLabel.width() > self.scrollArea.width() and self.zoomOutAct.isEnabled():
             self.zoomOut()
 
+    def updateVendorInVIew(self , vendor):
+        if vendor is None:
+            vendorLabel = QtGui.QLabel('Browse and Select one')
+            vendorName = 'Not selected'
+        else:
+            vendorLabel = QtGui.QLabel(QtCore.QString('<span style=" font-size:8pt; font-weight:600; color:black;">Name : </span>' + vendor['name'] + '<br/><span style=" font-size:8pt; font-weight:600; color:black;"> Address : </span>' + vendor['address']))
+            vendorName = vendor['name']
+        self.vendorDetailsGb.deleteLater()
+        self.vendorDetailsGb = None
+        self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
+        self.vendorLyt = QtGui.QGridLayout()
+        self.vendorLyt.addWidget(vendorLabel)
+        self.vendorDetailsGb.setLayout(self.vendorLyt)
+        self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
+        self.vendorEdit.setText(vendorName)
 
     def searchVendorHandler(self):
 
         dialog = searchVendorDialog(self)
         if dialog.exec_() == QtGui.QDialog.Accepted:
-            self.vendorEdit.setText(dialog.selectedValue['name'])
-
-            self.vendorDetailsGb.deleteLater()
-            self.vendorDetailsGb = None
-            self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
-            self.vendorLyt = QtGui.QGridLayout()
-            self.vendorLyt.addWidget(QtGui.QLabel(QtCore.QString('<span style=" font-size:8pt; font-weight:600; color:black;">Name : </span>' + dialog.selectedValue['name'] + '<br/><span style=" font-size:8pt; font-weight:600; color:black;"> Address : </span>' + dialog.selectedValue['address'])))
-            self.vendorDetailsGb.setLayout(self.vendorLyt)
-            self.formAreaLayout.addWidget(self.vendorDetailsGb , 2,1)
-
+            vendor = dialog.selectedValue
+            self.updateVendorInVIew(vendor)
+            print vendor
 
     def updateVendorDetails(self , vendor = None):
 
@@ -262,10 +327,49 @@ class Window(QtGui.QMainWindow):
             pass
 
     def saveBillDetails(self):
-        pass
+        # get the selected row in the table and make a post request to save the data
+        print self.table.currentRow()
+        invoice = self.sheet['invoices'][self.table.currentRow()]
+        if invoice['attachment'] is None:
+            files = {'attachment' : invoice['file']}
+        else:
+            # if the user changed or added a file the attachment is None and the file is to be uploaded from the .tmp folder
+            files = None
+        if invoice['service'] is None:
+
+
+            return
+
+        try:
+            dateStr = invoice['dated'].toString('yyyy-MMM-dd')
+        except:
+            dateStr = invoice['dated'].strftime("%Y-%m-%d")
+
+
+        data = {
+            'service' : invoice['service']['pk'],
+            'amount' : str(self.amountEdit.text()),
+            'currency' : 'INR',
+            'dated' : dateStr,
+            'sheet' : self.sheetID,
+            'description' : self.descEdit.toPlainText()
+        }
+        url = '/api/finance/invoice/'
+        if invoice['pk'] is None:
+            method = 'post'
+        else:
+            method = 'patch'
+            url +=  str(invoice['pk']) + '/'
+
+        res = libreHTTP(url = url , method = 'patch' , data = data , files = files )
+
 
     def showDate(self , date):
-        self.dateSelectedLbl.setText(date.toString('dd-MMM-yyyy'))
+        # print date.__class__
+        try:
+            self.dateSelectedLbl.setText(date.toString('dd-MMM-yyyy'))
+        except:
+            self.dateSelectedLbl.setText(date.strftime("%d-%m-%Y"))
 
     def getImgWidget(self , s):
         imageLabel = QtGui.QLabel()
@@ -298,6 +402,8 @@ class Window(QtGui.QMainWindow):
     def newFileActionHandler(self):
         if QtGui.QMessageBox.question(None, '', "Are you sure you want to start a new ? any unsaved data will be lost", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
             self.scans = []
+            self.sheet = None
+            self.sheetID = -1
             self.refreshScansList()
             self.imageLabel = QtGui.QLabel()
             self.imageLabel.setBackgroundRole(QtGui.QPalette.Base)
@@ -317,11 +423,18 @@ class Window(QtGui.QMainWindow):
         if sheet is None:
             print 'No sheet data provided'
         else:
+            self.sheet = sheet
+            utc=pytz.UTC
             self.sheetID = sheet['pk']
-            for i in sheet['invoices']:
+            for i in self.sheet['invoices']:
+
                 link = i['attachment']
                 path , name = libreHTTPDownload(link , os.path.join(os.path.dirname(os.path.abspath(__file__)) , 'temp'))
                 self.scans.append(path)
+
+                i['service']['address'] = addressToString(i['service']['address'])
+                i['dated'] = datetime.strptime(i['dated'], '%Y-%m-%d')
+                i['dated'] = i['dated'].replace(tzinfo=utc)
             if alreadyOpen:
                 self.refreshScansList()
 
@@ -479,25 +592,29 @@ if __name__ == '__main__':
     invalid = False
     sheetName = None
     sheet = None
+    welcome.mode = 'Open'
+    # if welcome.exec_() == QtGui.QDialog.Accepted:
+    #     print welcome.mode
+    #     if welcome.mode == 'New':
+    #         newSheet = NewSheetDialog()
+    #         if newSheet.exec_() == QtGui.QDialog.Accepted:
+    #             sheetName = newSheet.sheetName
+    #         else:
+    #             invalid = True
+    #     elif welcome.mode == 'Open':
+    #         search = searchSheetDialog()
+    #         if search.exec_() == QtGui.QDialog.Accepted:
+    #             sheet = search.selectedValue
+    #         else:
+    #             invalid = True
+    #     if invalid:
+    #         sys.exit()
+    # else:
+    #     sys.exit()
 
-    if welcome.exec_() == QtGui.QDialog.Accepted:
-        print welcome.mode
-        if welcome.mode == 'New':
-            newSheet = NewSheetDialog()
-            if newSheet.exec_() == QtGui.QDialog.Accepted:
-                sheetName = newSheet.sheetName
-            else:
-                invalid = True
-        elif welcome.mode == 'Open':
-            search = searchSheetDialog()
-            if search.exec_() == QtGui.QDialog.Accepted:
-                sheet = search.selectedValue
-            else:
-                invalid = True
-        if invalid:
-            sys.exit()
-    else:
-        sys.exit()
+    sheetJSONStr = """{"pk":1,"user":2,"created":"2016-12-02T10:04:34.203000Z","approved":false,"approvalMatrix":3,"approvalStage":1,"dispensed":false,"notes":"first sheet","project":{"pk":3,"title":"proj1","description":"sdas"},"transaction":1,"invoices":[{"pk":1,"user":2,"created":"2016-12-09T06:43:29.158000Z","service":{"pk":1,"created":"2016-11-16T14:12:41.235000Z","name":"Service 1","user":2,"cin":"CIN123","tin":"TIN123","address":{"pk":1,"street":"street1","city":"city1","state":"state1","pincode":201301,"lat":"12","lon":"13"},"mobile":9876543210,"telephone":"9876543210","logo":"gitlab.com","about":"test","doc":null},"amount":123,"currency":"INR","dated":"2001-01-01","attachment":"http://127.0.0.1:8000/media/finance/invoices/1481265809_16_pradeep.yadav_New_Doc_6_1.jpg","sheet":1,"description":"a desc text","approved":false},{"pk":3,"user":72,"created":"2016-12-16T18:12:05.248555Z","service":{"pk":3,"created":"2016-11-16T14:16:38.984000Z","name":"service 2","user":2,"cin":"CIN1234","tin":"CIN1234","address":{"pk":3,"street":"Street 2","city":"City 2","state":"State 2","pincode":201301,"lat":"13","lon":"14"},"mobile":9876543210,"telephone":"123456789","logo":"gitlab.com","about":"another service","doc":null},"amount":1000,"currency":"INR","dated":"2017-01-01","attachment":"http://127.0.0.1:8000/media/finance/invoices/1481911925_25_admin_scan.jpg","sheet":1,"description":"a desc text from python","approved":false},{"pk":4,"user":72,"created":"2016-12-16T18:16:04.244139Z","service":{"pk":1,"created":"2016-11-16T14:12:41.235000Z","name":"Service 1","user":2,"cin":"CIN123","tin":"TIN123","address":{"pk":1,"street":"street1","city":"city1","state":"state1","pincode":201301,"lat":"12","lon":"13"},"mobile":9876543210,"telephone":"9876543210","logo":"gitlab.com","about":"test","doc":null},"amount":1000,"currency":"INR","dated":"2017-01-02","attachment":"http://127.0.0.1:8000/media/finance/invoices/1481912164_24_admin_scan.jpg","sheet":1,"description":"a desc text from python","approved":false}]}"""
+
+    sheet = json.loads(sheetJSONStr)
 
     print sheet
 

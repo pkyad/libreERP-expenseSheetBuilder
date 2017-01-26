@@ -57,6 +57,7 @@ class searchSheetDialog(QtGui.QDialog):
         self.cal.setGridVisible(True)
         self.cal.clicked[QtCore.QDate].connect(self.searchDateSelected)
         self.cal.setVerticalHeaderFormat(QtGui.QCalendarWidget.NoVerticalHeader)
+        # self.cal.setSelectionMode(QtGui.QCalendarWidget.NoSelection)
 
         self.selectedDateLbl = QtGui.QLabel('No date selected')
 
@@ -120,6 +121,7 @@ class searchSheetDialog(QtGui.QDialog):
         self.setLayout(self.mainLayout)
 
     def searchDateSelected(self, date):
+        # self.cal.setSelectionMode(QtGui.QCalendarWidget.SingleSelection)
         self.selectedDateLbl.setText('Selected : %s' %  date.toString('dd-MMM-yyyy'))
 
     def handleOkay(self):

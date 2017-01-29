@@ -43,6 +43,7 @@ import lxml.etree as etree
 from xml.dom import minidom
 from dialogSearchVendor import searchVendorDialog
 from dialogReviewAndSubmit import resultDialog
+from scanAssist import getImageFromScanner
 from datetime import datetime
 import pytz
 
@@ -85,14 +86,7 @@ class Window(QtGui.QMainWindow):
         super(Window, self).__init__(parent)
 
         self.scans = []
-
-        # if mode == 'New':
-        #     # self.sheetID = sheet['pk']
-        #     self.scans = ['scan.jpg' , 'scan2.jpg', 'scan3.jpg']
-        #     self.sheet = sheet
-        # elif mode == 'Open':
         self.openSheet(sheet)
-
         self.user = user
         self.showMaximized()
         self.createActions()
@@ -119,8 +113,8 @@ class Window(QtGui.QMainWindow):
         addFileAction = QtGui.QAction(QtGui.QIcon('./essential_icons/attachment.png'), 'Add File', self)
         addFileAction.triggered.connect(self.addFile)
 
-        addFileAction = QtGui.QAction(QtGui.QIcon('./essential_icons/compose.png'), 'Edit Sheet Details', self)
-        addFileAction.triggered.connect(self.editSheetDetails)
+        editSheetAction = QtGui.QAction(QtGui.QIcon('./essential_icons/compose.png'), 'Edit Sheet Details', self)
+        editSheetAction.triggered.connect(self.editSheetDetails)
 
         submitSheetAction = QtGui.QAction(QtGui.QIcon('./essential_icons/archive-3.png'), 'Review and Submit', self)
         submitSheetAction.triggered.connect(self.reviewAndSubmit)
@@ -132,6 +126,7 @@ class Window(QtGui.QMainWindow):
         self.toolbar.addAction(zoomInAction)
         self.toolbar.addAction(zoomOutAction)
         self.toolbar.addAction(addFileAction)
+        self.toolbar.addAction(editSheetAction)
         self.toolbar.addAction(submitSheetAction)
         self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.toolbar.setIconSize(QtCore.QSize(15,15))
@@ -237,11 +232,6 @@ class Window(QtGui.QMainWindow):
 
         self.changeImageInView(0,0,0,0, loading = True)
 
-        # print self.scrollArea.width()
-        # print self.scrollArea.height()
-        # print self.imageLabel.width()
-        # print self.imageLabel.height()
-        # print self.zoomOutAct.isEnabled()
     def reviewAndSubmit(self):
         dialog = resultDialog(self , self.sheet, self.user)
         dialog.exec_()
@@ -257,7 +247,6 @@ class Window(QtGui.QMainWindow):
                 # update the project ID in the sheet
             self.sheet['notes'] = sheetEditor.sheetName
             res = libreHTTP(url = '/api/finance/expenseSheet/%s/' %(self.sheet['pk']) ,method = 'patch' , data= data , debug = True)
-
 
     def addFile(self):
         fileName = QtGui.QFileDialog.getOpenFileName(self, "Existing scans file", QtCore.QDir.homePath())
@@ -286,25 +275,23 @@ class Window(QtGui.QMainWindow):
 
 
     def changeImageInView(self, row , col , oldRow , oldCol , loading = False):
-        print oldRow, row , oldCol , col
-        if oldRow>=0 and not loading:
-            self.sheet['invoices'][oldRow]['amount'] = int(self.amountEdit.text())
-            self.sheet['invoices'][oldRow]['description'] = str(self.descEdit.toPlainText())
+        try:
+            if oldRow>=0 and not loading:
+                self.sheet['invoices'][oldRow]['amount'] = int(self.amountEdit.text())
+                self.sheet['invoices'][oldRow]['description'] = str(self.descEdit.toPlainText())
+        except:
+            self.imageLabel.setPixmap(QtGui.QPixmap())
 
         if len(self.sheet['invoices'])==0:
             return
 
-        invoice = self.sheet['invoices'][row]
-        print invoice
-        print '--------------------------'
+        invoice = self.sheet['invoices'][self.table.currentRow()]
         amount = invoice['amount']
         desc = invoice['description']
         service = invoice['service']
         dated = invoice['dated']
         self.amountEdit.setText(str(amount))
         self.descEdit.setText(desc)
-        # print invoice['service']
-
         self.showDate(dated)
         self.cal.setSelectedDate(dated)
         # if service is not None:
@@ -348,7 +335,6 @@ class Window(QtGui.QMainWindow):
             vendor = dialog.selectedValue
             self.updateVendorInVIew(vendor)
             self.sheet['invoices'][self.table.currentRow()]['service'] = vendor
-            print vendor
 
     def updateVendorDetails(self , vendor = None):
 
@@ -366,37 +352,55 @@ class Window(QtGui.QMainWindow):
         replace = menu.addAction("Replace")
         delete = menu.addAction("Delete")
         scan = menu.addAction("Scan")
-        print pt
         action = menu.exec_(self.table.mapToGlobal(pt))
+        ind = self.table.currentRow()
         if action == replace:
-            # print 'replace'
-            filePath = QtGui.QFileDialog.getOpenFileName(self, "Existing scans file", QtCore.QDir.homePath())
-            fileName = self.sheet['invoices'][ind]['attachment'].split('/')[-1]
-            self.sheet['invoices'][self.table.currentRow()]['file'] = filePath
+            filePath = QtGui.QFileDialog.getOpenFileName(self, "Select an existing scan file", QtCore.QDir.homePath())
+            if len(filePath)!=0:
+                self.sheet['invoices'][self.table.currentRow()]['file'] = filePath
+                self.sheet['invoices'][self.table.currentRow()]['attachment'] = None
+
+                image = QtGui.QImage(filePath)
+                self.scans[ind] = filePath
+                self.pixmap = QtGui.QPixmap.fromImage(image)
+                self.imageLabel.setPixmap(self.pixmap)
+                self.refreshScansList()
 
         elif action == delete:
-            # print 'delete'
             if QtGui.QMessageBox.question(None, '', "Are you sure you want to delete the invoie from the server ?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.No:
                 return
             invPk = self.sheet['invoices'][self.table.currentRow()]['pk']
-            ind = self.table.currentRow()
-            fileName = self.sheet['invoices'][ind]['attachment'].split('/')[-1]
-            os.remove(os.path.join(os.curdir , 'temp' , fileName))
             self.sheet['invoices'].pop(ind)
+            # fileName = self.sheet['invoices'][ind]['attachment'].split('/')[-1]
+            # os.remove(os.path.join(os.curdir , 'temp' , fileName))
             self.scans.pop(ind)
             res = libreHTTP(url = '/api/finance/invoice/' + str(invPk) + '/' , method = 'delete')
-            # print res
+            res = libreHTTP(url = '/api/finance/expenseSheet/' + str(self.sheetID) + '/' )
+            self.sheet = None
+            self.openSheet(res.json() , alreadyOpen = True)
             self.refreshScansList()
             # self.changeImageInView(0,0,0,0, loading = True)
             # self.table.setCurrentCell(0,0)
 
         elif action == scan:
-            print 'scan'
+            img = getImageFromScanner()
+            if img is None:
+                print 'Error getting image from the scanner'
+                return
+            filePath = os.path.join('.tmp' , '%s.jpg' %int(time.time()))
+            img.save(filePath, "JPEG")
+
+            self.sheet['invoices'][self.table.currentRow()]['file'] = filePath
+            self.sheet['invoices'][self.table.currentRow()]['attachment'] = None
+
+            image = QtGui.QImage(filePath)
+            self.scans[ind] = filePath
+            self.pixmap = QtGui.QPixmap.fromImage(image)
+            self.imageLabel.setPixmap(self.pixmap)
+            self.refreshScansList()
 
     def saveBillDetails(self):
         # get the selected row in the table and make a post request to save the data
-        # print self.table.currentRow()
-
         invoice = self.sheet['invoices'][self.table.currentRow()]
         if invoice['attachment'] is None:
             files = {'attachment' : open(invoice['file'], 'rb')}
@@ -418,9 +422,6 @@ class Window(QtGui.QMainWindow):
             'sheet' : self.sheetID,
             'description' : str(self.descEdit.toPlainText())
         }
-        # print '---------------------------------'
-        # print invoice
-        # print invoice['pk']
         url = '/api/finance/invoice/'
         if invoice['pk'] is None:
             method = 'post'
@@ -429,11 +430,8 @@ class Window(QtGui.QMainWindow):
             url +=  str(invoice['pk']) + '/'
 
         res = libreHTTP(url = url , method = method , data = data , files = files , debug = True )
-        print res
-
 
     def showDate(self , date):
-        # print date.__class__
         try:
             self.dateSelectedLbl.setText(date.toString('dd-MMM-yyyy'))
         except:
@@ -454,9 +452,6 @@ class Window(QtGui.QMainWindow):
         wdg.setLayout(wdgLt)
         return wdg
 
-    # def doubleClickedItem(self):
-    #     pass
-
     def refreshScansList(self):
         self.table.setRowCount(len(self.scans))
         for i in range(len(self.scans)):
@@ -464,7 +459,6 @@ class Window(QtGui.QMainWindow):
             self.table.setCellWidget(i,0 , self.getImgWidget(s))
             self.table.setRowHeight(i, 300)
 
-        # self.configureWidget = QtGui.QWidget()
         self.table.setMaximumWidth(240)
 
     def newFileActionHandler(self):
@@ -510,7 +504,17 @@ class Window(QtGui.QMainWindow):
                 self.table.setCurrentCell(0,0)
 
     def scanActionHandler(self):
-        pass
+        img = getImageFromScanner()
+        if img is None:
+            print 'Error getting image from the scanner'
+            return
+        imgPath = os.path.join('.tmp' , '%s.jpg' %int(time.time()))
+        img.save(imgPath, "JPEG")
+        self.scans.append(imgPath)
+        invoice = {'pk' : None , 'user' : self.user.pk , 'created' : datetime.now() , 'attachment' : None ,'service' : None , 'amount' : 0 , 'currency': 'INR' , 'dated' : datetime.now() , 'sheet' : self.sheetID , 'description' : '' , 'approved' : False , 'file' :  imgPath}
+        self.sheet['invoices'].append(invoice)
+        self.refreshScansList()
+
 
     def exitHandler(self):
         if QtGui.QMessageBox.question(None, '', "Are you sure you want to quit?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
@@ -655,7 +659,6 @@ if __name__ == '__main__':
 
     usr = getLibreUser()
 
-    print usr
     app = QtGui.QApplication(sys.argv)
 
     invalid = False
@@ -665,7 +668,6 @@ if __name__ == '__main__':
     welcome.mode = 'Open'
     if False:
         if welcome.exec_() == QtGui.QDialog.Accepted:
-            print welcome.mode
             if welcome.mode == 'New':
                 newSheet = NewSheetDialog()
                 if newSheet.exec_() == QtGui.QDialog.Accepted and newSheet.sheetName is not None and len(newSheet.sheetName):
@@ -676,15 +678,10 @@ if __name__ == '__main__':
                         'notes': str(sheetName),
                         'project': int(newSheet.project)
                     }
-                    print 'If'
-                    print newSheet.project
-                    # break
                     # make a post request
                     res = libreHTTP(url = '/api/finance/expenseSheet/' , method = 'post' , data= data)
-                    # print res
                     sheet = res.json()
                 else:
-                    print 'Else'
                     invalid = True
             elif welcome.mode == 'Open':
                 search = searchSheetDialog()
@@ -701,8 +698,6 @@ if __name__ == '__main__':
         sheetJSONStr = """{"pk":1,"user":2,"created":"2016-12-02T10:04:34.203000Z","approved":false,"approvalMatrix":3,"approvalStage":1,"dispensed":false,"notes":"first sheet","project":{"pk":3,"title":"proj1","description":"sdas"},"transaction":1,"invoices":[{"pk":1,"user":2,"created":"2016-12-09T06:43:29.158000Z","service":{"pk":1,"created":"2016-11-16T14:12:41.235000Z","name":"Service 1","user":2,"cin":"CIN123","tin":"TIN123","address":{"pk":1,"street":"street1","city":"city1","state":"state1","pincode":201301,"lat":"12","lon":"13"},"mobile":9876543210,"telephone":"9876543210","logo":"gitlab.com","about":"test","doc":null},"amount":123,"currency":"INR","dated":"2001-01-01","attachment":"http://127.0.0.1:8000/media/finance/invoices/1481265809_16_pradeep.yadav_New_Doc_6_1.jpg","sheet":1,"description":"a desc text","approved":false},{"pk":3,"user":72,"created":"2016-12-16T18:12:05.248555Z","service":{"pk":3,"created":"2016-11-16T14:16:38.984000Z","name":"service 2","user":2,"cin":"CIN1234","tin":"CIN1234","address":{"pk":3,"street":"Street 2","city":"City 2","state":"State 2","pincode":201301,"lat":"13","lon":"14"},"mobile":9876543210,"telephone":"123456789","logo":"gitlab.com","about":"another service","doc":null},"amount":1000,"currency":"INR","dated":"2017-01-01","attachment":"http://127.0.0.1:8000/media/finance/invoices/1481911925_25_admin_scan.jpg","sheet":1,"description":"a desc text from python","approved":false},{"pk":4,"user":72,"created":"2016-12-16T18:16:04.244139Z","service":{"pk":1,"created":"2016-11-16T14:12:41.235000Z","name":"Service 1","user":2,"cin":"CIN123","tin":"TIN123","address":{"pk":1,"street":"street1","city":"city1","state":"state1","pincode":201301,"lat":"12","lon":"13"},"mobile":9876543210,"telephone":"9876543210","logo":"gitlab.com","about":"test","doc":null},"amount":1000,"currency":"INR","dated":"2017-01-02","attachment":"http://127.0.0.1:8000/media/finance/invoices/1481912164_24_admin_scan.jpg","sheet":1,"description":"a desc text from python","approved":false}]}"""
 
         sheet = json.loads(sheetJSONStr)
-
-    print sheet
 
     window = Window(user = usr , sheet = sheet , name = sheetName , mode = welcome.mode)
     window.show()

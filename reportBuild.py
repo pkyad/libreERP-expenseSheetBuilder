@@ -98,7 +98,6 @@ def addPageNumber(canvas, doc):
     Add the page number
     """
     barcode_value = doc.data['barCode']
-    print barcode_value
     barcode39 = barcode.createBarcodeDrawing('EAN13', value = barcode_value,barWidth=0.3*mm,barHeight=10*mm)
 
     barcode39.drawOn(canvas,160*mm,270*mm)
@@ -187,14 +186,19 @@ def buildPDF(pdfdoc, sheet , usr):
     totalAmount = 0
     for i in sheet['invoices']:
         service = i['service']
-        line_data = [str(line_num),str(service['pk']), service['name'], i['description'], i['dated'], i['pk'], i['amount']]
+        dt = i['dated']
+
+        try:
+            dateStr = dt.toString('dd-MMM-yyyy')
+        except:
+            dateStr = dt.strftime("%d-%m-%Y")
+
+        line_data = [str(line_num),str(service['pk']), service['name'], i['description'], dateStr, i['pk'], i['amount']]
 
         if i['attachment'] is None:
             scans.append(i['file'])
         else:
             scans.append(os.path.join( BASE_DIR, 'temp', i['attachment'].split('/')[-1]))
-        # print i['attachment']
-        # print i['attachment']
         totalAmount += i['amount']
         for item in line_data:
             ptext = "<font size=%s>%s</font>" % (font_size-1, item)

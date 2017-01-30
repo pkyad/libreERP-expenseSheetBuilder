@@ -1,6 +1,12 @@
-import pyinsane2
 
 def getImageFromScanner():
+
+    try:
+        import pyinsane2
+    except:
+        print "Scanning feature not supported on this OS. Disabling it..."
+
+
     pyinsane2.init()
     try:
         devices = pyinsane2.get_devices()

@@ -158,15 +158,9 @@ class Window(QtGui.QMainWindow):
         self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.table.currentCellChanged.connect(self.changeImageInView)
         self.table.customContextMenuRequested.connect(self.tableContextMenuHandler)
-        # self.table.cellDoubleClicked .connect(self.doubleClickedItem)
-
-        self.refreshScansList()
-        # self.configureWidget.setLayout(self.table)
 
         self.formArea = QtGui.QWidget()
-
         self.formAreaLayout = QtGui.QGridLayout()
-
         vendorLbl = QtGui.QLabel('Vendor')
         self.vendorEdit = QtGui.QLineEdit()
         self.vendorEdit.setEnabled(False)
@@ -193,15 +187,13 @@ class Window(QtGui.QMainWindow):
         searchVendorBtn = QtGui.QPushButton('Search vendor')
         searchVendorBtn.clicked.connect(self.searchVendorHandler)
 
-        self.expenseSheetIDLbl = QtGui.QLabel('ES-%s'%(self.sheet['pk']))
-
         self.formAreaLayout.addWidget(QtGui.QLabel('Sheet ID') , 0,0)
         self.formAreaLayout.addWidget(self.expenseSheetIDLbl , 0,1)
 
         self.formAreaLayout.addWidget(vendorLbl , 1,0)
         self.formAreaLayout.addWidget(self.vendorEdit , 1,1)
         self.formAreaLayout.addWidget(searchVendorBtn , 1,1)
-        self.updateVendorDetails()
+        self.updateVendorInVIew()
         self.formAreaLayout.addWidget(descLbl , 4,0)
         self.formAreaLayout.addWidget(self.descEdit , 4,1)
         self.formAreaLayout.addWidget(amountLbl , 5,0)
@@ -229,7 +221,7 @@ class Window(QtGui.QMainWindow):
 
         self.setCentralWidget(QtGui.QWidget(self))
         self.centralWidget().setLayout(self.mainLayout)
-
+        self.refreshScansList()
         self.changeImageInView(0,0,0,0, loading = True)
 
     def reviewAndSubmit(self):
@@ -282,7 +274,7 @@ class Window(QtGui.QMainWindow):
         except:
             self.imageLabel.setPixmap(QtGui.QPixmap())
 
-        if len(self.sheet['invoices'])==0:
+        if self.sheet is None or len(self.sheet['invoices'])==0:
             return
 
         invoice = self.sheet['invoices'][self.table.currentRow()]
@@ -312,15 +304,18 @@ class Window(QtGui.QMainWindow):
         while self.imageLabel.width() > self.scrollArea.width() and self.zoomOutAct.isEnabled():
             self.zoomOut()
 
-    def updateVendorInVIew(self , vendor):
+    def updateVendorInVIew(self , vendor = None):
         if vendor is None:
             vendorLabel = QtGui.QLabel('Browse and Select one')
             vendorName = 'Not selected'
         else:
             vendorLabel = QtGui.QLabel(QtCore.QString('<span style=" font-size:8pt; font-weight:600; color:black;">Name : </span>' + vendor['name'] + '<br/><span style=" font-size:8pt; font-weight:600; color:black;"> Address : </span>' + vendor['address']))
             vendorName = vendor['name']
-        self.vendorDetailsGb.deleteLater()
-        self.vendorDetailsGb = None
+        try:
+            self.vendorDetailsGb.deleteLater()
+            self.vendorDetailsGb = None
+        except:
+            pass
         self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
         self.vendorLyt = QtGui.QGridLayout()
         self.vendorLyt.addWidget(vendorLabel)
@@ -335,17 +330,6 @@ class Window(QtGui.QMainWindow):
             vendor = dialog.selectedValue
             self.updateVendorInVIew(vendor)
             self.sheet['invoices'][self.table.currentRow()]['service'] = vendor
-
-    def updateVendorDetails(self , vendor = None):
-
-        if vendor is None:
-            self.vendorDetailsGb = QtGui.QGroupBox('Vendor details')
-            self.vendorLyt = QtGui.QGridLayout()
-            self.vendorLyt.addWidget(QtGui.QLabel('Please search and select a vendor <br/> to see its details'))
-            self.vendorDetailsGb.setLayout(self.vendorLyt)
-            self.formAreaLayout.addWidget(self.vendorDetailsGb , 3,1)
-        else:
-            pass
 
     def tableContextMenuHandler(self, pt):
         menu = QtGui.QMenu(self)
@@ -459,21 +443,30 @@ class Window(QtGui.QMainWindow):
             self.table.setCellWidget(i,0 , self.getImgWidget(s))
             self.table.setRowHeight(i, 300)
 
+        if len(self.scans) == 0:
+            self.imageLabel.setPixmap(QtGui.QPixmap())
+            self.amountEdit.setText('')
+            self.descEdit.setText('')
+            self.updateVendorInVIew()
+
         self.table.setMaximumWidth(240)
 
     def newFileActionHandler(self):
         if QtGui.QMessageBox.question(None, '', "Are you sure you want to start a new ? any unsaved data will be lost", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-            self.scans = []
-            self.sheet = None
-            self.sheetID = -1
-            self.refreshScansList()
-            self.imageLabel = QtGui.QLabel()
-            self.imageLabel.setBackgroundRole(QtGui.QPalette.Base)
-            self.imageLabel.setSizePolicy(QtGui.QSizePolicy.Ignored,
-                    QtGui.QSizePolicy.Ignored)
-            self.imageLabel.setScaledContents(True)
-            self.scrollArea.setWidget(self.imageLabel)
 
+            newSheet = NewSheetDialog()
+            if newSheet.exec_() == QtGui.QDialog.Accepted and newSheet.sheetName is not None and len(newSheet.sheetName) and newSheet.project is not None and len(newSheet.sheetName)>0:
+                sheetName = newSheet.sheetName
+                data = {
+                    'approved': False,
+                    'approvalMatrix': 3,
+                    'notes': str(sheetName),
+                    'project': int(newSheet.project['pk'])
+                }
+                # make a post request
+                res = libreHTTP(url = '/api/finance/expenseSheet/' , method = 'post' , data= data)
+                self.openSheet(res.json())
+                self.refreshScansList()
 
     def openFileActionHandler(self):
         search = searchSheetDialog()
@@ -488,6 +481,7 @@ class Window(QtGui.QMainWindow):
             self.sheet = sheet
             self.scans = []
             utc=pytz.UTC
+            self.expenseSheetIDLbl = QtGui.QLabel('ES-%s'%(self.sheet['pk']))
             self.sheetID = sheet['pk']
             for i in self.sheet['invoices']:
 
@@ -666,7 +660,7 @@ if __name__ == '__main__':
     sheet = None
     welcome = WelcomeDialog()
     welcome.mode = 'Open'
-    if False:
+    if True:
         if welcome.exec_() == QtGui.QDialog.Accepted:
             if welcome.mode == 'New':
                 newSheet = NewSheetDialog()
@@ -676,7 +670,7 @@ if __name__ == '__main__':
                         'approved': False,
                         'approvalMatrix': 3,
                         'notes': str(sheetName),
-                        'project': int(newSheet.project)
+                        'project': int(newSheet.project['pk'])
                     }
                     # make a post request
                     res = libreHTTP(url = '/api/finance/expenseSheet/' , method = 'post' , data= data)

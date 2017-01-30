@@ -29,8 +29,7 @@
 ## THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-## $QT_END_LICENSE$
-##
+
 #############################################################################
 import datetime
 from PyQt4 import QtCore, QtGui
@@ -111,7 +110,7 @@ class searchSheetDialog(QtGui.QDialog):
         self.layout.addWidget(self.resultGb , 0, 1)
         self.layout.addWidget(self.buttonBox , 1, 1, QtCore.Qt.AlignBottom |  QtCore.Qt.AlignRight)
 
-        self.setFixedWidth(800)
+        self.setFixedWidth(850)
         self.setFixedHeight(450)
         self.mainWidget.setLayout(self.layout)
 
@@ -121,7 +120,6 @@ class searchSheetDialog(QtGui.QDialog):
         self.setLayout(self.mainLayout)
 
     def searchDateSelected(self, date):
-        # self.cal.setSelectionMode(QtGui.QCalendarWidget.SingleSelection)
         self.selectedDateLbl.setText('Selected : %s' %  date.toString('dd-MMM-yyyy'))
 
     def handleOkay(self):
@@ -131,8 +129,6 @@ class searchSheetDialog(QtGui.QDialog):
         for b in self.radioBtnArray:
             if b.isChecked():
                 ind = self.radioBtnArray.index(b)
-                # print ind
-                # print self.results[ind]
         self.selectedValue = self.results[ind]
         self.accept()
 
@@ -147,11 +143,7 @@ class searchSheetDialog(QtGui.QDialog):
         for v in self.results:
             d = datetime.datetime.strptime(v['created'], '%Y-%m-%dT%H:%M:%S.%fZ')
             d = d.replace(tzinfo=utc)
-            vendors.append({'notes' : v['notes'] , 'ID' : v['pk'] , 'project': v['project'], 'created' : d})
-
-        print d
-        print dir(d)
-
+            vendors.append({'notes' : v['notes'] , 'ID' : v['pk'] , 'project': v['project']['title'], 'created' : d.strftime("%H:%M, %d-%m-%Y")})
 
         if len(vendors)==0:
             return
@@ -171,12 +163,11 @@ class searchSheetDialog(QtGui.QDialog):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().hide()
         self.table.setColumnWidth(0,20)
-        self.table.setColumnWidth(1,200)
+        self.table.setColumnWidth(1,220)
         self.table.setColumnWidth(2,50)
         self.table.setColumnWidth(3,90)
         self.table.setFixedHeight(370)
-
-
+        self.table.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.table.setRowCount(len(vendors))
 
         self.radioBtnArray = []

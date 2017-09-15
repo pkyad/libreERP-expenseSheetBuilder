@@ -92,6 +92,8 @@ class Window(QtGui.QMainWindow):
         self.createActions()
         self.createMenus()
 
+        self.setMinimumSize(QtCore.QSize(1200, 700))
+
         newAction = QtGui.QAction(QtGui.QIcon('./essential_icons/file.png'), 'New', self)
         newAction.setShortcut('Ctrl+N')
         newAction.triggered.connect(self.newFileActionHandler)
@@ -218,7 +220,6 @@ class Window(QtGui.QMainWindow):
         self.mainLayout.addWidget(self.scrollArea , 0,0)
         self.mainLayout.addWidget(self.form , 0,1)
         self.mainLayout.addWidget(self.table , 0,2)
-
         self.setCentralWidget(QtGui.QWidget(self))
         self.centralWidget().setLayout(self.mainLayout)
         self.refreshScansList()
